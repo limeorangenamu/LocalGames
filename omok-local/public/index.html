@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChatGPT</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Localhost Multiplayer</p>
+      <div class="brand-row">
+        <h1>보관함에서 커스텀 가능</h1>
+        <button id="shopOpenBtn" class="shop-open-btn" type="button" title="상점" aria-label="상점" hidden>상점</button>
+        <button id="inventoryOpenBtn" class="shop-open-btn" type="button" title="보관함" aria-label="보관함">보관함</button>
+      </div>
+    </div>
+    <div class="profile">
+      <span class="gold-badge" aria-label="보유 골드" hidden>
+        <span class="gold-icon"></span>
+        <strong id="goldAmount">0G</strong>
+      </span>
+      <span id="nicknameText">손님</span>
+      <button id="editNicknameBtn" type="button">수정</button>
+    </div>
+  </header>
+
+  <main id="lobbyView" class="lobby-view">
+    <section class="rooms-panel">
+      <div class="section-head">
+        <div>
+          <h2>게임방</h2>
+          <p id="lobbyInfo">방을 만들거나 입장하세요.</p>
+        </div>
+        <button id="createRoomBtn" type="button">방 만들기</button>
+      </div>
+      <div id="roomList" class="room-list"></div>
+    </section>
+  </main>
+
+  <main id="gameView" class="app" hidden>
+    <section class="panel">
+      <div class="room-head">
+        <div>
+          <p class="eyebrow">Game Room</p>
+          <h2 id="roomTitle" class="fit-text">게임방</h2>
+        </div>
+        <button id="leaveRoomBtn" type="button" class="ghost fit-text">방 나가기</button>
+      </div>
+
+      <div id="gameTypePanel" class="game-type-panel">
+        <button id="omokTypeBtn" type="button" class="fit-text" data-game-type="omok">오목</button>
+        <button id="janggiTypeBtn" type="button" class="fit-text" data-game-type="janggi">장기</button>
+        <button id="chessTypeBtn" type="button" class="fit-text" data-game-type="chess">체스</button>
+        <button id="alkkagiTypeBtn" type="button" class="fit-text" data-game-type="alkkagi">알까기</button>
+      </div>
+
+      <div class="status-grid">
+        <div id="myRoleCard" class="status-card role-card">
+          <span>내 역할</span>
+          <strong id="myRole" class="fit-text">로비</strong>
+        </div>
+        <div class="status-card">
+          <span>현재 상태</span>
+          <strong id="turnText" class="fit-text">-</strong>
+        </div>
+        <button id="blackSeatBtn" class="status-card seat-card player-black" type="button" data-seat="black">
+          <span id="blackSeatLabel">흑돌</span>
+          <strong id="blackPlayer" class="fit-text">비어 있음</strong>
+        </button>
+        <button id="whiteSeatBtn" class="status-card seat-card player-white" type="button" data-seat="white">
+          <span id="whiteSeatLabel">백돌</span>
+          <strong id="whitePlayer" class="fit-text">비어 있음</strong>
+        </button>
+      </div>
+
+      <p id="gameMessage" class="game-message">게임방에 입장했습니다.</p>
+
+      <div id="alkkagiChoicePanel" class="alkkagi-choice-panel" hidden>
+        <div class="alkkagi-choice-head">
+          <strong>5턴 보상 선택</strong>
+          <span id="alkkagiChoiceHint">선택지 하나를 고르세요.</span>
+        </div>
+        <div id="alkkagiChoiceList" class="alkkagi-choice-list"></div>
+      </div>
+
+      <div id="swapPanel" class="swap-panel" hidden>
+        <button id="swapRequestBtn" type="button">돌 색 바꾸기 요청</button>
+        <span id="swapHint"></span>
+      </div>
+
+      <div class="buttons">
+        <button id="startGameBtn" type="button" class="fit-text">게임시작</button>
+        <button id="newGameBtn" type="button" class="fit-text" hidden>새게임</button>
+        <button id="passTurnBtn" type="button" class="fit-text" hidden>한 수 쉼</button>
+        <button id="resignBtn" type="button" class="fit-text" hidden>기권</button>
+      </div>
+    </section>
+
+    <section class="board-wrap">
+      <div id="checkAlert" class="check-alert" hidden>장군이요!</div>
+      <div id="board" class="board" aria-label="오목판"></div>
+    </section>
+  </main>
+
+  <main id="shopView" class="shop-view" hidden>
+    <section class="shop-panel">
+      <div class="section-head">
+        <div>
+          <h2>상점</h2>
+          <p id="shopInfo">알까기 말 스킨과 이동 효과 스킨을 둘러보세요.</p>
+        </div>
+        <button id="shopBackBtn" type="button" class="ghost fit-text">돌아가기</button>
+      </div>
+
+      <section id="shopAdminPanel" class="shop-admin-panel" hidden>
+        <h3>상점 관리자</h3>
+        <p>닉네임이 정확히 서버장인 사용자만 알까기 말 스킨과 이동 효과 스킨을 등록할 수 있습니다.</p>
+        <form id="skinCreateForm" class="skin-create-form">
+          <input id="skinNameInput" maxlength="32" placeholder="스킨 이름" autocomplete="off" />
+          <input id="skinPriceInput" type="number" min="0" max="999999" step="1" placeholder="가격" />
+          <input id="skinImageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+          <button type="submit" class="fit-text">상점에 등록</button>
+        </form>
+        <form id="effectCreateForm" class="effect-create-form">
+          <input id="effectNameInput" maxlength="32" placeholder="효과 스킨 이름" autocomplete="off" />
+          <input id="effectPriceInput" type="number" min="0" max="999999" step="1" placeholder="가격" />
+          <select id="effectStyleInput" aria-label="효과 종류">
+            <option value="fire">불꽃</option>
+            <option value="rainbow">무지개</option>
+            <option value="comet">빛꼬리</option>
+            <option value="smoke">안개</option>
+          </select>
+          <label class="effect-field">
+            <span>앞색</span>
+            <input id="effectColorAInput" type="color" value="#ff4a1c" />
+          </label>
+          <label class="effect-field">
+            <span>뒤색</span>
+            <input id="effectColorBInput" type="color" value="#ffd15a" />
+          </label>
+          <label class="effect-field">
+            <span>길이</span>
+            <input id="effectLengthInput" type="range" min="0.6" max="2" step="0.1" value="1.1" />
+          </label>
+          <label class="effect-field">
+            <span>두께</span>
+            <input id="effectSizeInput" type="range" min="0.6" max="1.8" step="0.1" value="1" />
+          </label>
+          <button type="submit" class="fit-text">효과 등록</button>
+        </form>
+      </section>
+
+      <div id="skinShopGrid" class="skin-shop-grid"></div>
+    </section>
+  </main>
+
+  <main id="inventoryView" class="shop-view" hidden>
+    <section class="shop-panel">
+      <div class="section-head">
+        <div>
+          <h2>보관함</h2>
+          <p id="inventoryInfo">보유한 알까기 스킨을 확인하고 장착하세요.</p>
+        </div>
+        <button id="inventoryBackBtn" type="button" class="ghost fit-text">돌아가기</button>
+      </div>
+
+      <div id="inventoryGrid" class="skin-shop-grid"></div>
+    </section>
+  </main>
+
+  <aside id="spectatorPanel" class="spectator-panel" hidden>
+    <button id="joinSpectatorBtn" type="button" class="fit-text">관전자로 참가</button>
+    <h3>관전자</h3>
+    <ul id="spectatorList"></ul>
+  </aside>
+
+  <aside id="lobbyChat" class="chat" aria-label="로비 채팅창">
+    <div id="lobbyChatMessages" class="chat-messages"></div>
+    <form id="lobbyChatForm" class="chat-form">
+      <input id="lobbyChatInput" maxlength="160" placeholder="로비 채팅" autocomplete="off" />
+      <button type="submit">전송</button>
+    </form>
+  </aside>
+
+  <aside id="roomChat" class="chat" aria-label="방 채팅창" hidden>
+    <div id="roomChatMessages" class="chat-messages"></div>
+    <form id="roomChatForm" class="chat-form">
+      <input id="roomChatInput" maxlength="160" placeholder="방 채팅" autocomplete="off" />
+      <button type="submit">전송</button>
+    </form>
+  </aside>
+
+  <div id="nicknameModal" class="modal" hidden>
+    <form id="nicknameForm" class="modal-box">
+      <h2>닉네임 설정</h2>
+      <input id="nicknameInput" maxlength="16" placeholder="닉네임" autocomplete="off" />
+      <div class="modal-actions">
+        <button id="cancelNicknameBtn" type="button" class="ghost fit-text">취소</button>
+        <button type="submit" class="fit-text">저장</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>

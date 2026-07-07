@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Academy Hero Arena</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="menu" class="panel">
+    <h1>Academy Hero Arena</h1>
+    <p>First-person 3D deathmatch prototype</p>
+
+    <label for="nameInput">
+      Player name
+      <input id="nameInput" maxlength="14" placeholder="Player" />
+    </label>
+
+    <div class="hero-select" aria-label="Hero selection">
+      <button class="hero selected" data-hero="assault" type="button">
+        <strong>Assault</strong>
+        <span>20-round hitscan rifle. Full Q gauge equips 4 rockets.</span>
+      </button>
+      <button class="hero" data-hero="tank" type="button">
+        <strong>Tank</strong>
+        <span>Two-handed hammer brawler. Hold right click for barrier.</span>
+      </button>
+      <button class="hero" data-hero="support" type="button">
+        <strong>Support</strong>
+        <span>15-shot shuriken skirmisher. Full Q gauge heals and speeds attacks.</span>
+      </button>
+    </div>
+
+    <button id="joinBtn" class="primary" type="button">Join Arena</button>
+
+    <div class="help">
+      <p><b>Move</b> WASD, <b>look</b> mouse, <b>attack</b> left click, <b>barrier</b> right click, <b>reload</b> R, <b>chat</b> Enter</p>
+      <p><b>Jump</b> Space, <b>sprint</b> Shift, <b>skill</b> Q, <b>hero select</b> Esc</p>
+    </div>
+  </div>
+
+  <div id="game" class="hidden">
+    <canvas id="canvas"></canvas>
+    <div id="crosshair" aria-hidden="true"></div>
+    <div id="lockHint">Click to capture mouse</div>
+    <div id="hud">
+      <div id="playerInfo"></div>
+      <div id="skillInfo"></div>
+      <div id="skillGauge"><div id="skillGaugeFill"></div><span id="skillGaugeText"></span></div>
+      <div id="scoreboard"></div>
+      <div id="chatPanel">
+        <div id="chatMessages"></div>
+        <input id="chatInput" class="hidden" maxlength="140" autocomplete="off" placeholder="Message" />
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/client.js"></script>
+</body>
+</html>

@@ -1,0 +1,624 @@
+{
+  "players": {
+    "123": {
+      "name": "123",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "123123": {
+      "name": "123123",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "손님": {
+      "name": "손님",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "서버장": {
+      "name": "서버장",
+      "gold": 2,
+      "inventory": [
+        "skin-1783329279850-75lfwv",
+        "trail-1783397130886-8e3xvs",
+        "skin-1783401274120-ppd1dx",
+        "trail-1783401309725-5i6hdr"
+      ],
+      "equipped": {
+        "alkkagiTrail": "trail-1783401309725-5i6hdr",
+        "jang": "skin-1783401274120-ppd1dx",
+        "cha": "skin-1783401274120-ppd1dx",
+        "po": "skin-1783401274120-ppd1dx",
+        "ma": "skin-1783401274120-ppd1dx",
+        "sang": "skin-1783401274120-ppd1dx",
+        "sa": "skin-1783401274120-ppd1dx",
+        "soldier": "skin-1783401274120-ppd1dx"
+      }
+    },
+    "서버장1": {
+      "name": "서버장1",
+      "gold": 0,
+      "inventory": [
+        "skin-1783329416646-xoihtw",
+        "skin-1783403130253-1elj5s",
+        "trail-1783403150608-j8390t",
+        "trail-1783403330287-bup0jf",
+        "skin-1783403537178-qa9b8f",
+        "skin-1783403581363-q9wery",
+        "skin-1783404573767-e0p5c2",
+        "skin-1783404965393-m1v6uo"
+      ],
+      "equipped": {
+        "alkkagiTrail": "trail-1783403150608-j8390t",
+        "cha": "skin-1783403581363-q9wery",
+        "sa": "skin-1783403581363-q9wery",
+        "sang": "skin-1783403581363-q9wery",
+        "soldier": "skin-1783403581363-q9wery",
+        "po": "skin-1783403581363-q9wery",
+        "ma": "skin-1783403581363-q9wery",
+        "jang": "skin-1783404965393-m1v6uo"
+      }
+    },
+    "테스트": {
+      "name": "테스트",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "칙쇼": {
+      "name": "칙쇼",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "권구라": {
+      "name": "권구라",
+      "gold": 2,
+      "inventory": [
+        "skin-1783404262669-cmgr05"
+      ],
+      "equipped": {}
+    },
+    "ㅇㅇ": {
+      "name": "ㅇㅇ",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "구경꾼1": {
+      "name": "구경꾼1",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "드가자": {
+      "name": "드가자",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "조퇴각": {
+      "name": "조퇴각",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "권오창": {
+      "name": "권오창",
+      "gold": 0,
+      "inventory": [
+        "skin-1783403411762-mx83hp"
+      ],
+      "equipped": {
+        "jang": "skin-1783403411762-mx83hp",
+        "sang": "skin-1783403411762-mx83hp",
+        "sa": "skin-1783403411762-mx83hp",
+        "cha": "skin-1783403411762-mx83hp",
+        "po": "skin-1783403411762-mx83hp",
+        "soldier": "skin-1783403411762-mx83hp",
+        "ma": "skin-1783403411762-mx83hp"
+      }
+    },
+    "서버장2": {
+      "name": "서버장2",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "그냥하염없이눈물이나": {
+      "name": "그냥하염없이눈물이나",
+      "gold": 0,
+      "inventory": [
+        "skin-1783406404578-3ersj1",
+        "trail-1783406408396-qp23sx"
+      ],
+      "equipped": {
+        "alkkagiTrail": "trail-1783406408396-qp23sx"
+      }
+    },
+    "개백수": {
+      "name": "개백수",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "서버장v": {
+      "name": "서버장v",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "익명": {
+      "name": "익명",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "서버장vㅊ": {
+      "name": "서버장vㅊ",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "구경꾼2": {
+      "name": "구경꾼2",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "서버장i": {
+      "name": "서버장I",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "서버장4": {
+      "name": "서버장4",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    ".": {
+      "name": ".",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "서버장(찐찐막)": {
+      "name": "서버장(찐찐막)",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "🙄🙄🙄🙄🙄🙄🙄🙄": {
+      "name": "🙄🙄🙄🙄🙄🙄🙄🙄",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "༼ つ ◕_◕ ༽つ": {
+      "name": "༼ つ ◕_◕ ༽つ",
+      "gold": 0,
+      "inventory": [
+        "skin-1783410005790-ou4ide"
+      ],
+      "equipped": {
+        "jang": "skin-1783410005790-ou4ide",
+        "cha": "skin-1783410005790-ou4ide",
+        "po": "skin-1783410005790-ou4ide",
+        "ma": "skin-1783410005790-ou4ide",
+        "soldier": "skin-1783410005790-ou4ide",
+        "sa": "skin-1783410005790-ou4ide",
+        "sang": "skin-1783410005790-ou4ide"
+      }
+    },
+    "서버장(찐막)": {
+      "name": "서버장(찐막)",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "tester_4925": {
+      "name": "tester_4925",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "tester_61241": {
+      "name": "tester_61241",
+      "gold": 0,
+      "inventory": [
+        "skin-1783409389667-ddphr3"
+      ],
+      "equipped": {}
+    },
+    "test' or '1'='1": {
+      "name": "test' OR '1'='1",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "attacker_48242": {
+      "name": "attacker_48242",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "tester_62572": {
+      "name": "tester_62572",
+      "gold": 0,
+      "inventory": [
+        "skin-1783409438876-n8v4zc"
+      ],
+      "equipped": {}
+    },
+    "tester_31920": {
+      "name": "tester_31920",
+      "gold": 0,
+      "inventory": [
+        "skin-1783409474514-yx71oh"
+      ],
+      "equipped": {}
+    },
+    "tester_27075": {
+      "name": "tester_27075",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "tester_11977": {
+      "name": "tester_11977",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "tester_31832": {
+      "name": "tester_31832",
+      "gold": 0,
+      "inventory": [
+        "trail-1783409515633-aphvwl"
+      ],
+      "equipped": {}
+    },
+    "서버장​": {
+      "name": "서버장​",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "서버장\u0000": {
+      "name": "서버장\u0000",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "서버장": {
+      "name": "서버장",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "3백은 틀리지 않았다.": {
+      "name": "3백은 틀리지 않았다.",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "서버장\\u200b": {
+      "name": "서버장\\u200B",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "inspector_154": {
+      "name": "inspector_154",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "inspector_187": {
+      "name": "inspector_187",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "temp_4696": {
+      "name": "temp_4696",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "temp_712": {
+      "name": "temp_712",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "temp_9059": {
+      "name": "temp_9059",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "temp_4514": {
+      "name": "temp_4514",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    }
+  },
+  "skins": [
+    {
+      "id": "skin-1783329279850-75lfwv",
+      "name": "축구공",
+      "price": 5,
+      "imageUrl": "/uploads/skins/skin-1783329279850-75lfwv.jpg",
+      "target": "janggi-piece",
+      "createdBy": "서버장",
+      "createdAt": 1783329279851,
+      "active": true
+    },
+    {
+      "id": "skin-1783329416646-xoihtw",
+      "name": "몬스터볼",
+      "price": 5,
+      "imageUrl": "/uploads/skins/skin-1783329416646-xoihtw.jpg",
+      "target": "janggi-piece",
+      "createdBy": "서버장",
+      "createdAt": 1783329416647,
+      "active": true
+    },
+    {
+      "id": "trail-1783395835022-85j6e5",
+      "name": "불똥",
+      "price": 10,
+      "target": "alkkagi-trail",
+      "effect": {
+        "style": "fire",
+        "colorA": "#ff4a1c",
+        "colorB": "#ffd15a",
+        "length": 1.5,
+        "size": 1.5,
+        "opacity": 0.78
+      },
+      "createdBy": "서버장",
+      "createdAt": 1783395835022,
+      "active": true
+    },
+    {
+      "id": "trail-1783397130886-8e3xvs",
+      "name": "불꽃",
+      "price": 0,
+      "target": "alkkagi-trail",
+      "effect": {
+        "style": "fire",
+        "colorA": "#ff4a1c",
+        "colorB": "#ffd15a",
+        "length": 2,
+        "size": 1.8,
+        "opacity": 0.78
+      },
+      "createdBy": "서버장",
+      "createdAt": 1783397130886,
+      "active": true
+    },
+    {
+      "id": "skin-1783401274120-ppd1dx",
+      "name": "비누",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783401274120-ppd1dx.jpg",
+      "target": "janggi-piece",
+      "createdBy": "서버장",
+      "createdAt": 1783401274120,
+      "active": true
+    },
+    {
+      "id": "trail-1783401309725-5i6hdr",
+      "name": "비눗방울",
+      "price": 0,
+      "target": "alkkagi-trail",
+      "effect": {
+        "style": "comet",
+        "colorA": "#1aa7ff",
+        "colorB": "#5cfffc",
+        "length": 2,
+        "size": 1.8,
+        "opacity": 0.78
+      },
+      "createdBy": "서버장",
+      "createdAt": 1783401309725,
+      "active": true
+    },
+    {
+      "id": "skin-1783403130253-1elj5s",
+      "name": "사채업자",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783403130253-1elj5s.jpg",
+      "target": "janggi-piece",
+      "createdBy": "서버장1",
+      "createdAt": 1783403130254,
+      "active": true
+    },
+    {
+      "id": "trail-1783403150608-j8390t",
+      "name": "알까기 이동 효과",
+      "price": 0,
+      "target": "alkkagi-trail",
+      "effect": {
+        "style": "rainbow",
+        "colorA": "#ff4a1c",
+        "colorB": "#ffd15a",
+        "length": 2,
+        "size": 1.8,
+        "opacity": 0.78
+      },
+      "createdBy": "서버장1",
+      "createdAt": 1783403150608,
+      "active": true
+    },
+    {
+      "id": "trail-1783403330287-bup0jf",
+      "name": "알까기 이동 효과",
+      "price": 0,
+      "target": "alkkagi-trail",
+      "effect": {
+        "style": "fire",
+        "colorA": "#b17668",
+        "colorB": "#b17668",
+        "length": 2,
+        "size": 1.8,
+        "opacity": 0.78
+      },
+      "createdBy": "서버장1",
+      "createdAt": 1783403330287,
+      "active": true
+    },
+    {
+      "id": "skin-1783403411762-mx83hp",
+      "name": "신창섭",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783403411762-mx83hp.gif",
+      "target": "janggi-piece",
+      "createdBy": "권오창",
+      "createdAt": 1783403411763,
+      "active": true
+    },
+    {
+      "id": "skin-1783403537178-qa9b8f",
+      "name": "신창섭",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783403537178-qa9b8f.gif",
+      "target": "janggi-piece",
+      "createdBy": "서버장1",
+      "createdAt": 1783403537180,
+      "active": true
+    },
+    {
+      "id": "skin-1783403581363-q9wery",
+      "name": "신창섭",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783403581363-q9wery.gif",
+      "target": "janggi-piece",
+      "createdBy": "서버장1",
+      "createdAt": 1783403581366,
+      "active": true
+    },
+    {
+      "id": "skin-1783404262669-cmgr05",
+      "name": "음",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783404262669-cmgr05.jpg",
+      "target": "janggi-piece",
+      "createdBy": "권구라",
+      "createdAt": 1783404262670,
+      "active": true
+    },
+    {
+      "id": "skin-1783404573767-e0p5c2",
+      "name": "ㅁㄴㅇㄹ",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783404573767-e0p5c2.png",
+      "target": "janggi-piece",
+      "createdBy": "서버장1",
+      "createdAt": 1783404573768,
+      "active": true
+    },
+    {
+      "id": "skin-1783404965393-m1v6uo",
+      "name": "드럼통",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783404965393-m1v6uo.gif",
+      "target": "janggi-piece",
+      "createdBy": "서버장1",
+      "createdAt": 1783404965397,
+      "active": true
+    },
+    {
+      "id": "skin-1783406404578-3ersj1",
+      "name": "드가자잇",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783406404578-3ersj1.jpg",
+      "target": "janggi-piece",
+      "createdBy": "그냥하염없이눈물이나",
+      "createdAt": 1783406404579,
+      "active": true
+    },
+    {
+      "id": "trail-1783406408396-qp23sx",
+      "name": "알까기 이동 효과",
+      "price": 0,
+      "target": "alkkagi-trail",
+      "effect": {
+        "style": "fire",
+        "colorA": "#ff4a1c",
+        "colorB": "#ffd15a",
+        "length": 1.1,
+        "size": 1,
+        "opacity": 0.78
+      },
+      "createdBy": "그냥하염없이눈물이나",
+      "createdAt": 1783406408396,
+      "active": true
+    },
+    {
+      "id": "skin-1783409389667-ddphr3",
+      "name": "vuln_test_skin",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783409389667-ddphr3.png",
+      "target": "janggi-piece",
+      "createdBy": "tester_61241",
+      "createdAt": 1783409389668,
+      "active": true
+    },
+    {
+      "id": "skin-1783409438876-n8v4zc",
+      "name": "bypass_test_skin",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783409438876-n8v4zc.png",
+      "target": "janggi-piece",
+      "createdBy": "tester_62572",
+      "createdAt": 1783409438877,
+      "active": true
+    },
+    {
+      "id": "skin-1783409474514-yx71oh",
+      "name": "custom_id_skin",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783409474514-yx71oh.png",
+      "target": "janggi-piece",
+      "createdBy": "tester_31920",
+      "createdAt": 1783409474515,
+      "active": true
+    },
+    {
+      "id": "trail-1783409515633-aphvwl",
+      "name": "pollution_test_effect",
+      "price": 0,
+      "target": "alkkagi-trail",
+      "effect": {
+        "style": "fire",
+        "colorA": "#ff0000",
+        "colorB": "#00ff00",
+        "length": 1,
+        "size": 1,
+        "opacity": 0.78
+      },
+      "createdBy": "tester_31832",
+      "createdAt": 1783409515633,
+      "active": true
+    },
+    {
+      "id": "skin-1783410005790-ou4ide",
+      "name": "알까기 말 스킨",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783410005790-ou4ide.jpg",
+      "target": "janggi-piece",
+      "createdBy": "༼ つ ◕_◕ ༽つ",
+      "createdAt": 1783410005790,
+      "active": true
+    }
+  ]
+}

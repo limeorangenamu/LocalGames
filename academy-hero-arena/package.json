@@ -1,0 +1,15 @@
+{
+  "name": "academy-hero-arena",
+  "version": "1.0.0",
+  "description": "Local/LAN multiplayer first-person 3D hero shooter prototype with Node.js, Socket.IO, and Three.js.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.3",
+    "socket.io": "^4.7.5",
+    "three": "^0.185.0"
+  }
+}
