@@ -1,0 +1,59 @@
+[
+  {
+    "nickname": "서버장",
+    "score": 145200,
+    "wave": 40,
+    "cleared": true,
+    "topGenres": [
+      "overwatch",
+      "mha",
+      "tooniverse"
+    ],
+    "createdAt": "2026-07-09T05:27:10.249Z"
+  },
+  {
+    "nickname": "신창엽",
+    "score": 122200,
+    "wave": 40,
+    "cleared": true,
+    "topGenres": [
+      "overwatch",
+      "tooniverse",
+      "onepunch"
+    ],
+    "createdAt": "2026-07-09T07:07:30.555Z"
+  },
+  {
+    "nickname": "그냥하염없이눈물이나",
+    "score": 38250,
+    "wave": 15,
+    "cleared": false,
+    "topGenres": [
+      "overwatch",
+      "tooniverse",
+      "onepunch"
+    ],
+    "createdAt": "2026-07-09T07:35:01.145Z"
+  },
+  {
+    "nickname": "고라니",
+    "score": 9050,
+    "wave": 9,
+    "cleared": false,
+    "topGenres": [
+      "overwatch"
+    ],
+    "createdAt": "2026-07-09T05:24:37.872Z"
+  },
+  {
+    "nickname": "Player",
+    "score": 7170,
+    "wave": 6,
+    "cleared": false,
+    "topGenres": [
+      "mha",
+      "overwatch"
+    ],
+    "createdAt": "2026-07-10T03:46:24.179Z"
+  }
+]

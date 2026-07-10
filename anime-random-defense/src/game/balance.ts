@@ -2,11 +2,14 @@ import type { Genre, Grade, GradeStat, SummonRateRow, UnitDefinition } from './t
 
 export const CANVAS_WIDTH = 1280
 export const CANVAS_HEIGHT = 720
+export const RENDER_WIDTH = 1920
+export const RENDER_HEIGHT = 1080
+export const RENDER_SCALE = RENDER_WIDTH / CANVAS_WIDTH
 
 export const BOARD = {
-  outer: { x: 80, y: 60, width: 700, height: 600 },
+  outer: { x: 180, y: 60, width: 700, height: 600 },
   pathThickness: 55,
-  inner: { x: 150, y: 130, width: 560, height: 460 },
+  inner: { x: 250, y: 130, width: 560, height: 460 },
   uiX: 920
 } as const
 
@@ -17,68 +20,59 @@ export const GAME_RULES = {
   startLives: 30,
   mobDangerThreshold: 100,
   mobHardCap: 130,
+  difficultyMultiplier: 1.5,
+  goldIncomeMultiplier: 0.65,
   waveGapMs: 4200,
   spawnIntervalMs: 740
 } as const
 
 export const GRADES: Grade[] = ['common', 'rare', 'hero', 'legend', 'myth']
 
-export const GRADE_LABEL: Record<Grade, string> = {
-  common: '일반',
-  rare: '희귀',
-  hero: '영웅',
-  legend: '전설',
-  myth: '신화'
-}
-
 export const GRADE_COLOR: Record<Grade, number> = {
-  common: 0xbfc5d2,
-  rare: 0x4fa3ff,
-  hero: 0xb46cff,
-  legend: 0xffaa2b,
-  myth: 0xff4d6d
+  common: 0xf8fafc,
+  rare: 0x0066ff,
+  hero: 0x9d00ff,
+  legend: 0xff7a00,
+  myth: 0xff003c
 }
 
-export const GENRES: Genre[] = ['battle', 'fantasy', 'magic', 'mecha', 'sports', 'mystery']
+export const GENRES: Genre[] = ['mha', 'onepunch', 'overwatch', 'tooniverse']
 
 export const GENRE_LABEL: Record<Genre, string> = {
-  battle: '배틀물',
-  fantasy: '판타지/이세계',
-  magic: '마법소녀/마법사',
-  mecha: '메카/SF',
-  sports: '스포츠/근성',
-  mystery: '추리/두뇌전'
+  mha: '붕의 일족',
+  onepunch: '거인 사냥꾼',
+  overwatch: '메카물',
+  tooniverse: '제2금융권'
 }
 
 export const GENRE_COLOR: Record<Genre, number> = {
-  battle: 0xff5c5c,
-  fantasy: 0x7bd66f,
-  magic: 0xff7fd9,
-  mecha: 0x69d2ff,
-  sports: 0xffd35c,
-  mystery: 0xc8a2ff
+  mha: 0x94a3b8,
+  onepunch: 0x22c55e,
+  overwatch: 0xef4444,
+  tooniverse: 0xfacc15
 }
 
 export const GRADE_STATS: Record<Grade, GradeStat> = {
-  common: { attack: 8, attackIntervalMs: 1000, range: 170, moveSpeed: 140, radius: 16 },
-  rare: { attack: 23, attackIntervalMs: 1000, range: 180, moveSpeed: 140, radius: 17 },
-  hero: { attack: 65, attackIntervalMs: 1050, range: 190, moveSpeed: 135, radius: 18 },
-  legend: { attack: 170, attackIntervalMs: 1100, range: 205, moveSpeed: 130, radius: 20 },
-  myth: { attack: 460, attackIntervalMs: 1200, range: 225, moveSpeed: 125, radius: 22 }
+  common: { attack: 10, attackIntervalMs: 1050, range: 168, moveSpeed: 140, radius: 16 },
+  rare: { attack: 15, attackIntervalMs: 990, range: 180, moveSpeed: 143, radius: 17 },
+  hero: { attack: 75, attackIntervalMs: 930, range: 196, moveSpeed: 147, radius: 18 },
+  legend: { attack: 750, attackIntervalMs: 860, range: 216, moveSpeed: 151, radius: 20 },
+  myth: { attack: 15000, attackIntervalMs: 790, range: 240, moveSpeed: 156, radius: 22 }
 }
 
 export const SUMMON_RATES: SummonRateRow[] = [
-  { common: 74.899, rare: 20, hero: 5, legend: 0.1, myth: 0.001, cost: null },
-  { common: 67.74, rare: 25, hero: 7, legend: 0.25, myth: 0.01, cost: 120 },
-  { common: 59.45, rare: 30, hero: 10, legend: 0.5, myth: 0.05, cost: 220 },
-  { common: 49.8, rare: 34, hero: 15, legend: 1, myth: 0.2, cost: 400 },
-  { common: 39.4, rare: 36, hero: 22, legend: 2, myth: 0.6, cost: 700 },
-  { common: 29, rare: 37, hero: 29, legend: 4, myth: 1, cost: 1100 },
-  { common: 19, rare: 35, hero: 37, legend: 7, myth: 2, cost: 1700 }
+  { common: 75, rare: 22.5, hero: 2.35, legend: 0.14, myth: 0.01, cost: null },
+  { common: 69, rare: 25, hero: 5.5, legend: 0.45, myth: 0.05, cost: 120 },
+  { common: 61, rare: 28, hero: 9, legend: 1.75, myth: 0.25, cost: 220 },
+  { common: 52, rare: 31, hero: 13, legend: 3.5, myth: 0.5, cost: 400 },
+  { common: 42, rare: 33, hero: 18, legend: 6, myth: 1, cost: 700 },
+  { common: 31, rare: 33, hero: 24, legend: 10, myth: 2, cost: 1100 },
+  { common: 19, rare: 32, hero: 32, legend: 14, myth: 3, cost: 1700 }
 ]
 
-export const GENRE_UPGRADE_COSTS = [90, 160, 280, 460, 720, 1050, 1450, 1950]
-export const GENRE_UPGRADE_ATTACK_BONUS = 0.15
+export const GENRE_UPGRADE_BASE_COST = 20
+export const GENRE_UPGRADE_COST_INCREMENT = 2
+export const GENRE_UPGRADE_ATTACK_BONUS = 0.02
 
 export const SELL_VALUES: Record<Grade, number> = {
   common: 8,
@@ -89,41 +83,47 @@ export const SELL_VALUES: Record<Grade, number> = {
 }
 
 export const UNITS: UnitDefinition[] = [
-  { id: 'battle_common', name: '수련생 파이터', grade: 'common', genre: 'battle', display: '파' },
-  { id: 'battle_rare', name: '오라 검사', grade: 'rare', genre: 'battle', display: '검' },
-  { id: 'battle_hero', name: '폭주 권투가', grade: 'hero', genre: 'battle', display: '권' },
-  { id: 'battle_legend', name: '용권의 영웅', grade: 'legend', genre: 'battle', display: '용' },
-  { id: 'battle_myth', name: '최종 각성자', grade: 'myth', genre: 'battle', display: '각' },
+  { id: 'mha_common_1', name: '복싱 3일차', grade: 'common', genre: 'mha', attackStyle: 'fist' },
+  { id: 'mha_common_2', name: '헬스 3일차', grade: 'common', genre: 'mha', attackStyle: 'dumbbell' },
+  { id: 'mha_rare_1', name: '프로 복서', grade: 'rare', genre: 'mha', attackStyle: 'fast_fist' },
+  { id: 'mha_rare_2', name: '헬창', grade: 'rare', genre: 'mha', attackStyle: 'barbell' },
+  { id: 'mha_hero_1', name: '헥토파스칼 킥', grade: 'hero', genre: 'mha', attackStyle: 'kick' },
+  { id: 'mha_hero_2', name: '주먹 초딩', grade: 'hero', genre: 'mha', attackStyle: 'flurry_fist' },
+  { id: 'mha_legend_1', name: '단소 살인마', grade: 'legend', genre: 'mha', attackStyle: 'flute_blade' },
+  { id: 'mha_legend_2', name: '자르반 84세', grade: 'legend', genre: 'mha', attackStyle: 'spear' },
+  { id: 'mha_myth_1', name: '검존 김춘자', grade: 'myth', genre: 'mha', attackStyle: 'greatsword', mythStyle: 'greatsword', mythQuote: '미안해요 영감' },
 
-  { id: 'fantasy_common', name: '슬라임 조련사', grade: 'common', genre: 'fantasy', display: '슬' },
-  { id: 'fantasy_rare', name: '룬 궁수', grade: 'rare', genre: 'fantasy', display: '룬' },
-  { id: 'fantasy_hero', name: '던전 현자', grade: 'hero', genre: 'fantasy', display: '현' },
-  { id: 'fantasy_legend', name: '마왕 사냥꾼', grade: 'legend', genre: 'fantasy', display: '마' },
-  { id: 'fantasy_myth', name: '세계수의 군주', grade: 'myth', genre: 'fantasy', display: '수' },
+  { id: 'onepunch_common_1', name: '호두까기 인형', grade: 'common', genre: 'onepunch', attackStyle: 'nut_throw' },
+  { id: 'onepunch_common_2', name: '새총을 든 초딩', grade: 'common', genre: 'onepunch', attackStyle: 'slingshot' },
+  { id: 'onepunch_rare_1', name: '로빈후드', grade: 'rare', genre: 'onepunch', attackStyle: 'bow' },
+  { id: 'onepunch_rare_2', name: '호크아이', grade: 'rare', genre: 'onepunch', attackStyle: 'bow' },
+  { id: 'onepunch_hero_1', name: '위도우', grade: 'hero', genre: 'onepunch', attackStyle: 'sniper' },
+  { id: 'onepunch_hero_2', name: '아나', grade: 'hero', genre: 'onepunch', attackStyle: 'sniper' },
+  { id: 'onepunch_legend_1', name: '홍석천', grade: 'legend', genre: 'onepunch', attackStyle: 'laser' },
+  { id: 'onepunch_legend_2', name: '심영', grade: 'legend', genre: 'onepunch', attackStyle: 'tear_throw' },
+  { id: 'onepunch_myth_1', name: '황분출 해병님', grade: 'myth', genre: 'onepunch', attackStyle: 'rapid_burst', mythStyle: 'rapid_burst', mythQuote: '아쌔이' },
 
-  { id: 'magic_common', name: '견습 마법사', grade: 'common', genre: 'magic', display: '마' },
-  { id: 'magic_rare', name: '별지팡이 소녀', grade: 'rare', genre: 'magic', display: '별' },
-  { id: 'magic_hero', name: '결계술사', grade: 'hero', genre: 'magic', display: '결' },
-  { id: 'magic_legend', name: '달빛 대마도사', grade: 'legend', genre: 'magic', display: '달' },
-  { id: 'magic_myth', name: '기적의 여왕', grade: 'myth', genre: 'magic', display: '기' },
+  { id: 'overwatch_common_1', name: '건담 프라모델', grade: 'common', genre: 'overwatch', attackStyle: 'weak_laser' },
+  { id: 'overwatch_common_2', name: '로봇 장난감', grade: 'common', genre: 'overwatch', attackStyle: 'machine_gun' },
+  { id: 'overwatch_rare_1', name: '장난감 군대', grade: 'rare', genre: 'overwatch', attackStyle: 'machine_gun' },
+  { id: 'overwatch_rare_2', name: '캐서디', grade: 'rare', genre: 'overwatch', attackStyle: 'pistol' },
+  { id: 'overwatch_hero_1', name: '토르비욘', grade: 'hero', genre: 'overwatch', attackStyle: 'lava_pool' },
+  { id: 'overwatch_hero_2', name: '디바', grade: 'hero', genre: 'overwatch', attackStyle: 'mech_bomb' },
+  { id: 'overwatch_legend_1', name: '아이언맨', grade: 'legend', genre: 'overwatch', attackStyle: 'twin_laser' },
+  { id: 'overwatch_legend_2', name: '정은 6호기', grade: 'legend', genre: 'overwatch', attackStyle: 'nuke' },
+  { id: 'overwatch_myth_1', name: '천원돌파 그렌라간', grade: 'myth', genre: 'overwatch', attackStyle: 'drill_zone', mythStyle: 'drill', mythQuote: '내 드릴은 하늘을 뚫을 드릴이다.' },
 
-  { id: 'mecha_common', name: '고철 파일럿', grade: 'common', genre: 'mecha', display: '고' },
-  { id: 'mecha_rare', name: '레이저 병사', grade: 'rare', genre: 'mecha', display: '레' },
-  { id: 'mecha_hero', name: '코어 엔지니어', grade: 'hero', genre: 'mecha', display: '코' },
-  { id: 'mecha_legend', name: '타이탄 메카', grade: 'legend', genre: 'mecha', display: '타' },
-  { id: 'mecha_myth', name: '은하 수호자', grade: 'myth', genre: 'mecha', display: '은' },
-
-  { id: 'sports_common', name: '신입 러너', grade: 'common', genre: 'sports', display: '런' },
-  { id: 'sports_rare', name: '날카로운 슈터', grade: 'rare', genre: 'sports', display: '슛' },
-  { id: 'sports_hero', name: '에이스 스트라이커', grade: 'hero', genre: 'sports', display: '스' },
-  { id: 'sports_legend', name: '불꽃의 주장', grade: 'legend', genre: 'sports', display: '불' },
-  { id: 'sports_myth', name: '한계돌파 챔피언', grade: 'myth', genre: 'sports', display: '챔' },
-
-  { id: 'mystery_common', name: '초보 탐정', grade: 'common', genre: 'mystery', display: '탐' },
-  { id: 'mystery_rare', name: '카드 전략가', grade: 'rare', genre: 'mystery', display: '카' },
-  { id: 'mystery_hero', name: '그림자 분석관', grade: 'hero', genre: 'mystery', display: '분' },
-  { id: 'mystery_legend', name: '시간의 트릭스터', grade: 'legend', genre: 'mystery', display: '시' },
-  { id: 'mystery_myth', name: '운명의 해석자', grade: 'myth', genre: 'mystery', display: '운' }
+  { id: 'tooniverse_common_1', name: '뒷골목 건달', grade: 'common', genre: 'tooniverse', attackStyle: 'coin_throw' },
+  { id: 'tooniverse_common_2', name: '비실한 약쟁이', grade: 'common', genre: 'tooniverse', attackStyle: 'syringe_throw' },
+  { id: 'tooniverse_rare_1', name: '보스의 오른팔', grade: 'rare', genre: 'tooniverse', attackStyle: 'gun' },
+  { id: 'tooniverse_rare_2', name: '은행 도둑', grade: 'rare', genre: 'tooniverse', attackStyle: 'smg' },
+  { id: 'tooniverse_hero_1', name: '차무식', grade: 'hero', genre: 'tooniverse', attackStyle: 'bill_throw' },
+  { id: 'tooniverse_hero_2', name: '섀도어', grade: 'hero', genre: 'tooniverse', attackStyle: 'coin_bomb' },
+  { id: 'tooniverse_hero_3', name: '도박사', grade: 'hero', genre: 'tooniverse', attackStyle: 'dice_bomb' },
+  { id: 'tooniverse_legend_1', name: '사채업자', grade: 'legend', genre: 'tooniverse', attackStyle: 'debt_photo' },
+  { id: 'tooniverse_legend_2', name: '로또 1등 당첨자', grade: 'legend', genre: 'tooniverse', attackStyle: 'lottery_support' },
+  { id: 'tooniverse_legend_3', name: '금맥 발견자', grade: 'legend', genre: 'tooniverse', attackStyle: 'gold_bar' },
+  { id: 'tooniverse_myth_1', name: '워렌 버핏', grade: 'myth', genre: 'tooniverse', attackStyle: 'money_rain', mythStyle: 'money_rain', mythQuote: '제1법칙. 절대 돈을 잃지 않을것' }
 ]
 
 export function getNextGrade(grade: Grade): Grade | null {
@@ -136,28 +136,31 @@ export function getUnitsByGrade(grade: Grade): UnitDefinition[] {
 }
 
 export function getMonsterHp(wave: number): number {
-  return Math.round(30 * Math.pow(1.115, wave - 1))
+  const growth = 1 + (1.115 - 1) * 2.5
+  return Math.round(30 * Math.pow(growth, wave - 1) * GAME_RULES.difficultyMultiplier)
 }
 
 export function getMonsterSpeed(wave: number): number {
-  return Math.min(62, 45 + wave * 0.35)
+  return Math.min(105, 45 + wave * 0.35 * 2.5)
 }
 
 export function getNormalSpawnCount(wave: number): number {
-  if (wave % 10 === 0) {
-    const bossNumber = wave / 10
-    return 8 + bossNumber * 4
+  const scaleCount = (count: number) => Math.ceil(count * GAME_RULES.difficultyMultiplier * 3)
+  if (wave % 5 === 0) {
+    const bossNumber = wave / 5
+    return scaleCount(8 + bossNumber * 4)
   }
-  return 6 + Math.floor(wave * 0.8)
+  return scaleCount(6 + Math.floor(wave * 0.8))
 }
 
 export function getKillGold(wave: number): number {
-  return 6 + Math.floor(wave / 4)
+  return Math.max(1, Math.floor((6 + Math.floor(wave / 4)) * GAME_RULES.goldIncomeMultiplier))
 }
 
 export function getBossTimeLimitMs(wave: number): number {
-  const table: Record<number, number> = { 10: 45_000, 20: 50_000, 30: 55_000, 40: 60_000 }
-  return table[wave] ?? 45_000
+  const bossNumber = Math.max(1, Math.floor(wave / 5))
+  const oldScaleSeconds = 40 + bossNumber * 2.5
+  return Math.round(oldScaleSeconds * 2.5) * 1000
 }
 
 export function getBossHp(wave: number): number {

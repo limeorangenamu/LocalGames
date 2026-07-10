@@ -42,5 +42,5 @@ export function gradeWeightObject(row: { common: number; rare: number; hero: num
 }
 
 export function genreListText(genres: Genre[]): string {
-  return genres.length > 0 ? genres.map((genre) => GENRE_LABEL[genre]).join(', ') : '-'
+  return genres.length > 0 ? genres.map((genre) => GENRE_LABEL[genre] ?? String(genre)).join(', ') : '-'
 }

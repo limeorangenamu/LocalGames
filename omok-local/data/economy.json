@@ -6,6 +6,12 @@
       "inventory": [],
       "equipped": {}
     },
+    "5555": {
+      "name": "5555",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
     "123123": {
       "name": "123123",
       "gold": 0,
@@ -286,7 +292,9 @@
     "서버장​": {
       "name": "서버장​",
       "gold": 0,
-      "inventory": [],
+      "inventory": [
+        "skin-1783474742819-di1z2i"
+      ],
       "equipped": {}
     },
     "서버장\u0000": {
@@ -345,6 +353,82 @@
     },
     "temp_4514": {
       "name": "temp_4514",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "inspector_511": {
+      "name": "inspector_511",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "tester_58507": {
+      "name": "tester_58507",
+      "gold": 0,
+      "inventory": [
+        "trail-1783473662528-ze1d7k"
+      ],
+      "equipped": {}
+    },
+    "tester_14828": {
+      "name": "tester_14828",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "attacker_94568": {
+      "name": "attacker_94568",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "tester_12299": {
+      "name": "tester_12299",
+      "gold": 0,
+      "inventory": [
+        "skin-1783473698871-mncfrx"
+      ],
+      "equipped": {}
+    },
+    "tester_45731": {
+      "name": "tester_45731",
+      "gold": 0,
+      "inventory": [
+        "skin-1783473708887-m632jf"
+      ],
+      "equipped": {}
+    },
+    "tester_92411": {
+      "name": "tester_92411",
+      "gold": 0,
+      "inventory": [
+        "skin-1783473719564-jrhrqx"
+      ],
+      "equipped": {}
+    },
+    "tester_961": {
+      "name": "tester_961",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "tester_95062": {
+      "name": "tester_95062",
+      "gold": 0,
+      "inventory": [
+        "trail-1783474221429-48ak81"
+      ],
+      "equipped": {}
+    },
+    "inspector_524": {
+      "name": "inspector_524",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "inspector_576": {
+      "name": "inspector_576",
       "gold": 0,
       "inventory": [],
       "equipped": {}
@@ -618,6 +702,80 @@
       "target": "janggi-piece",
       "createdBy": "༼ つ ◕_◕ ༽つ",
       "createdAt": 1783410005790,
+      "active": true
+    },
+    {
+      "id": "trail-1783473662528-ze1d7k",
+      "name": "pollution_test_effect",
+      "price": 0,
+      "target": "alkkagi-trail",
+      "effect": {
+        "style": "fire",
+        "colorA": "#ff0000",
+        "colorB": "#00ff00",
+        "length": 1,
+        "size": 1,
+        "opacity": 0.78
+      },
+      "createdBy": "tester_58507",
+      "createdAt": 1783473662528,
+      "active": true
+    },
+    {
+      "id": "skin-1783473698871-mncfrx",
+      "name": "vuln_test_skin",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783473698871-mncfrx.png",
+      "target": "janggi-piece",
+      "createdBy": "tester_12299",
+      "createdAt": 1783473698874,
+      "active": true
+    },
+    {
+      "id": "skin-1783473708887-m632jf",
+      "name": "custom_id_skin",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783473708887-m632jf.png",
+      "target": "janggi-piece",
+      "createdBy": "tester_45731",
+      "createdAt": 1783473708890,
+      "active": true
+    },
+    {
+      "id": "skin-1783473719564-jrhrqx",
+      "name": "bypass_test_skin",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783473719564-jrhrqx.png",
+      "target": "janggi-piece",
+      "createdBy": "tester_92411",
+      "createdAt": 1783473719566,
+      "active": true
+    },
+    {
+      "id": "trail-1783474221429-48ak81",
+      "name": "pollution_test_effect",
+      "price": 0,
+      "target": "alkkagi-trail",
+      "effect": {
+        "style": "fire",
+        "colorA": "#ff0000",
+        "colorB": "#00ff00",
+        "length": 1,
+        "size": 1,
+        "opacity": 0.78
+      },
+      "createdBy": "tester_95062",
+      "createdAt": 1783474221429,
+      "active": true
+    },
+    {
+      "id": "skin-1783474742819-di1z2i",
+      "name": "알까기 말 스킨",
+      "price": 0,
+      "imageUrl": "/uploads/skins/skin-1783474742819-di1z2i.png",
+      "target": "janggi-piece",
+      "createdBy": "서버장​",
+      "createdAt": 1783474742822,
       "active": true
     }
   ]
