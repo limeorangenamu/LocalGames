@@ -1,0 +1,138 @@
+.base-storage {
+  position: absolute;
+  z-index: 90;
+  top: 50%;
+  left: 50%;
+  width: min(560px, calc(100% - 2rem));
+  padding: 0.9rem;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgb(238 213 107 / 48%);
+  border-radius: 0.8rem;
+  color: #f5efd1;
+  background: rgb(9 29 20 / 96%);
+  box-shadow: 0 1.2rem 3rem rgb(0 0 0 / 55%);
+}
+
+.base-storage header {
+  display: flex;
+  margin-bottom: 0.7rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.base-storage h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.base-storage header span {
+  color: #cfb951;
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.base-storage button {
+  border: 1px solid rgb(230 238 207 / 20%);
+  border-radius: 0.35rem;
+  color: #dce5d1;
+  background: rgb(40 65 45 / 72%);
+  cursor: pointer;
+  font-size: 0.65rem;
+  transition:
+    border-color 140ms ease,
+    color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease,
+    filter 140ms ease,
+    transform 140ms ease;
+}
+
+.base-storage button:hover {
+  border-color: rgb(238 211 100 / 62%);
+  color: #fff2b5;
+  background: rgb(80 70 28 / 84%);
+  box-shadow: 0 0.3rem 0.75rem rgb(0 0 0 / 22%);
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.base-storage button:active {
+  transform: translateY(0);
+}
+
+.base-storage button:focus-visible {
+  outline: 2px solid #efd36c;
+  outline-offset: 2px;
+}
+
+.base-storage header button {
+  padding: 0.4rem 0.65rem;
+}
+
+.base-storage__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid rgb(223 237 203 / 15%);
+  border-left: 1px solid rgb(223 237 203 / 15%);
+}
+
+.base-storage__grid > div {
+  display: grid;
+  min-width: 0;
+  aspect-ratio: 1;
+  padding: 0.4rem;
+  align-content: center;
+  border-right: 1px solid rgb(223 237 203 / 15%);
+  border-bottom: 1px solid rgb(223 237 203 / 15%);
+  color: #92a395;
+  background: rgb(30 55 39 / 35%);
+  gap: 0.25rem;
+}
+
+.base-storage__grid > div.is-filled {
+  background: rgb(58 73 33 / 52%);
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    filter 140ms ease;
+}
+
+.base-storage__grid > div.is-filled:hover {
+  border-color: rgb(238 211 100 / 45%);
+  background: rgb(76 88 39 / 68%);
+  filter: brightness(1.08);
+}
+
+.base-storage__grid strong,
+.base-storage__grid span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.base-storage__grid strong {
+  color: #f0e5b0;
+  font-size: 0.7rem;
+}
+
+.base-storage__grid span,
+.base-storage > p {
+  color: #9cac9e;
+  font-size: 0.6rem;
+}
+
+.base-storage__grid > div > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.base-storage__grid button {
+  padding: 0.22rem 0.3rem;
+}
+
+.base-storage > p {
+  margin: 0.65rem 0 0;
+  text-align: center;
+}
