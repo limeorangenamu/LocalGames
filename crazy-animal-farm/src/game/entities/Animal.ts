@@ -42,6 +42,7 @@ export class Animal extends Phaser.Physics.Arcade.Sprite {
   private hurtUntil = 0
   private wanderDirectionX = 0
   private wanderDirectionY = 0
+  private facingDirection: WorldPoint = { x: 1, y: 0 }
   private normalScaleX = 1
   private normalScaleY = 1
   private readonly targetStatusEffects = new Map<
@@ -336,6 +337,26 @@ export class Animal extends Phaser.Physics.Arcade.Sprite {
       : ANIMAL_COLLISION_RADIUS
   }
 
+  isPositionBehind(position: WorldPoint) {
+    const offsetX = position.x - this.x
+    const offsetY = position.y - this.y
+    const distance = Math.hypot(offsetX, offsetY)
+
+    if (distance < 1) {
+      return false
+    }
+
+    const directionToPosition = {
+      x: offsetX / distance,
+      y: offsetY / distance,
+    }
+    const facingDotPosition =
+      this.facingDirection.x * directionToPosition.x +
+      this.facingDirection.y * directionToPosition.y
+
+    return facingDotPosition <= -0.35
+  }
+
   private decideNextState(time: number, distanceToPlayer: number) {
     const hpRatio = this.currentHp / this.definition.maxHp
 
@@ -462,6 +483,15 @@ export class Animal extends Phaser.Physics.Arcade.Sprite {
       safeVelocityY = Math.abs(safeVelocityY)
     } else if (this.y >= bounds.bottom - edgeMargin && safeVelocityY > 0) {
       safeVelocityY = -Math.abs(safeVelocityY)
+    }
+
+    const speed = Math.hypot(safeVelocityX, safeVelocityY)
+
+    if (speed > 1) {
+      this.facingDirection = {
+        x: safeVelocityX / speed,
+        y: safeVelocityY / speed,
+      }
     }
 
     this.setVelocity(safeVelocityX, safeVelocityY)

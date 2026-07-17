@@ -9,6 +9,7 @@ import {
   LOGGING_STATION_TEXTURE_KEY,
   OBSTACLE_TEXTURE_KEY,
   PLAYER_TEXTURE_KEY,
+  PLAYER_PROJECTILE_TEXTURE_KEY,
   PRIMITIVE_WORKBENCH_TEXTURE_KEY,
   RABBIT_TEXTURE_KEY,
   SHEEP_TEXTURE_KEY,
@@ -33,6 +34,7 @@ export class BootScene extends Phaser.Scene {
     this.createSheepTexture()
     this.createBoarTexture()
     this.createCaptureCapsuleTexture()
+    this.createPlayerProjectileTexture()
     this.createBaseCoreTexture()
     this.createLoggingStationTexture()
     this.createPrimitiveWorkbenchTexture()
@@ -256,6 +258,23 @@ export class BootScene extends Phaser.Scene {
     graphics.fillTriangle(16, 10, 22, 16, 16, 22)
     graphics.fillTriangle(16, 10, 10, 16, 16, 22)
     graphics.generateTexture(CAPTURE_CAPSULE_TEXTURE_KEY, 32, 32)
+    graphics.destroy()
+  }
+
+  private createPlayerProjectileTexture() {
+    if (this.textures.exists(PLAYER_PROJECTILE_TEXTURE_KEY)) {
+      return
+    }
+
+    const graphics = this.make.graphics({ x: 0, y: 0 }, false)
+
+    graphics.fillStyle(0xd6b864, 1)
+    graphics.fillRoundedRect(2, 8, 24, 4, 2)
+    graphics.fillStyle(0xe8e0c5, 1)
+    graphics.fillTriangle(26, 4, 32, 10, 26, 16)
+    graphics.fillStyle(0x8d5732, 1)
+    graphics.fillTriangle(4, 10, 0, 5, 0, 15)
+    graphics.generateTexture(PLAYER_PROJECTILE_TEXTURE_KEY, 32, 20)
     graphics.destroy()
   }
 

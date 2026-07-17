@@ -3,15 +3,32 @@ import { useGameStore } from '../store/useGameStore'
 import {
   ANIMAL_ELEMENTS,
   ANIMAL_SELF_STATUS_EFFECTS,
+  ANIMAL_TARGET_STATUS_EFFECTS,
 } from '../game/data/animalElements'
 import { ANIMAL_ACTIVE_SKILLS } from '../game/data/animalSkills'
 import { ANIMAL_DEFINITIONS } from '../game/data/animals'
+import {
+  CAPTURE_SUPPORT_MODULES,
+  CAPTURE_TOOL_DEFINITIONS,
+  resolveActiveCaptureToolItemId,
+} from '../game/data/capture'
+import { ITEM_DEFINITIONS } from '../game/data/items'
+import { TOOL_DEFINITIONS } from '../game/data/equipment'
 import type {
   AnimalSelfStatusEffectId,
   CapturedAnimal,
   CompanionSkillCooldownState,
   CompanionCommandMode,
 } from '../game/types/animal'
+import type {
+  CapturePreviewState,
+  CaptureSupportModuleId,
+  CaptureToolItemId,
+} from '../game/types/capture'
+import {
+  getEquipmentDurability,
+  getPlayerArmorRating,
+} from '../game/utils/playerCombat'
 import { Hotbar } from './Hotbar'
 import './gameplayHud.css'
 
@@ -50,6 +67,14 @@ export function Hud() {
   )
   const playerShield = useGameStore((state) => state.playerShield)
   const playerMaxShield = useGameStore((state) => state.playerMaxShield)
+  const playerStamina = useGameStore((state) => state.playerStamina)
+  const playerMaxStamina = useGameStore((state) => state.playerMaxStamina)
+  const playerStaminaRecoveryDelayed = useGameStore(
+    (state) => state.playerStaminaRecoveryDelayed,
+  )
+  const playerMovementState = useGameStore(
+    (state) => state.playerMovementState,
+  )
   const isGameMenuOpen = useGameStore((state) => state.isGameMenuOpen)
   const isMapOpen = useGameStore((state) => state.isMapOpen)
   const isBaseStorageOpen = useGameStore((state) => state.isBaseStorageOpen)
@@ -86,6 +111,25 @@ export function Hud() {
   const companionLastSkillName = useGameStore(
     (state) => state.companionLastSkillName,
   )
+  const inventory = useGameStore((state) => state.inventory)
+  const equippedToolId = useGameStore((state) => state.equippedToolId)
+  const equippedItems = useGameStore((state) => state.equippedItems)
+  const equipmentDurability = useGameStore(
+    (state) => state.equipmentDurability,
+  )
+  const combatMessage = useGameStore((state) => state.combatMessage)
+  const hotbarSlots = useGameStore((state) => state.hotbarSlots)
+  const selectedHotbarIndex = useGameStore(
+    (state) => state.selectedHotbarIndex,
+  )
+  const playerCapturePower = useGameStore(
+    (state) => state.playerCapturePower,
+  )
+  const equippedCaptureSupportModuleId = useGameStore(
+    (state) => state.equippedCaptureSupportModuleId,
+  )
+  const capturePreview = useGameStore((state) => state.capturePreview)
+  const captureMessage = useGameStore((state) => state.captureMessage)
   const selectHotbarSlot = useGameStore((state) => state.selectHotbarSlot)
 
   useEffect(() => {
@@ -136,6 +180,7 @@ export function Hud() {
     playerExperienceToNextLevel,
   )
   const shieldPercent = toPercent(playerShield, playerMaxShield)
+  const staminaPercent = toPercent(playerStamina, playerMaxStamina)
   const activeAnimalParty = activeAnimalPartyIds
     .map(
       (animalId) =>
@@ -152,9 +197,37 @@ export function Hud() {
     activeAnimalParty.find(
       (animal) => animal.id === summonedCompanionAnimalId,
     ) ?? null
+  const activeCaptureToolItemId = resolveActiveCaptureToolItemId(
+    inventory,
+    hotbarSlots,
+    selectedHotbarIndex,
+  )
+  const equippedTool = TOOL_DEFINITIONS[equippedToolId]
+  const equippedToolDurability = getEquipmentDurability(
+    equippedToolId,
+    equipmentDurability,
+  )
+  const armorRating = getPlayerArmorRating(
+    equippedItems,
+    equipmentDurability,
+  )
 
   return (
     <aside className="hud" aria-label="플레이 상태">
+      {activeMode === 'capture' && (
+        <CaptureStatus
+          activeToolItemId={activeCaptureToolItemId}
+          activeToolAmount={
+            activeCaptureToolItemId
+              ? inventory[activeCaptureToolItemId]
+              : 0
+          }
+          playerCapturePower={playerCapturePower}
+          supportModuleId={equippedCaptureSupportModuleId}
+          preview={capturePreview}
+          message={captureMessage}
+        />
+      )}
       <CompanionStatus
         party={activeAnimalParty}
         selectedCompanion={selectedCompanion}
@@ -179,6 +252,26 @@ export function Hud() {
               EXP {playerExperience} / {playerExperienceToNextLevel}
             </span>
           </div>
+          <div className="player-vitals__loadout" title={combatMessage}>
+            <strong>{equippedTool.name}</strong>
+            {equippedTool.ammunitionItemId && (
+              <span>
+                {ITEM_DEFINITIONS[equippedTool.ammunitionItemId].name}{' '}
+                {inventory[equippedTool.ammunitionItemId]}
+              </span>
+            )}
+            {equippedToolDurability !== null && (
+              <span>
+                내구도 {equippedToolDurability} / {equippedTool.maxDurability}
+              </span>
+            )}
+            <span>방어 {armorRating}</span>
+          </div>
+          {combatMessage && (
+            <small className="player-vitals__combat-message">
+              {combatMessage}
+            </small>
+          )}
           <CompactBar
             label="경험치"
             percent={experiencePercent}
@@ -191,6 +284,11 @@ export function Hud() {
               tone="shield"
             />
           )}
+          <CompactBar
+            label={`스태미나 ${Math.ceil(playerStamina)} / ${playerMaxStamina} · ${getActionResourceLabel(playerMovementState, playerStaminaRecoveryDelayed, playerStamina >= playerMaxStamina)}`}
+            percent={staminaPercent}
+            tone="stamina"
+          />
           <CompactBar
             label={`체력 ${playerHp} / ${playerMaxHp}`}
             percent={hpPercent}
@@ -213,6 +311,72 @@ export function Hud() {
 
       <Hotbar variant="gameplay" />
     </aside>
+  )
+}
+
+type CaptureStatusProps = Readonly<{
+  activeToolItemId: CaptureToolItemId | null
+  activeToolAmount: number
+  playerCapturePower: number
+  supportModuleId: CaptureSupportModuleId | null
+  preview: CapturePreviewState | null
+  message: string
+}>
+
+function CaptureStatus({
+  activeToolItemId,
+  activeToolAmount,
+  playerCapturePower,
+  supportModuleId,
+  preview,
+  message,
+}: CaptureStatusProps) {
+  const tool = activeToolItemId
+    ? CAPTURE_TOOL_DEFINITIONS[activeToolItemId]
+    : null
+  const moduleDefinition = supportModuleId
+    ? CAPTURE_SUPPORT_MODULES[supportModuleId]
+    : null
+  const breakdown = preview?.breakdown ?? null
+  const activeStatusEffectIds = preview?.activeStatusEffectIds ?? []
+  const isRearHit = preview?.isRearHit ?? false
+
+  return (
+    <section className="capture-status" aria-label="포획 분석">
+      <header>
+        <div>
+          <span>CAPTURE ANALYSIS</span>
+          <strong>{preview?.targetName ?? '대상을 조준하세요'}</strong>
+        </div>
+        <em>{breakdown ? `${Math.round(breakdown.chance * 100)}%` : '--'}</em>
+      </header>
+      <div className="capture-status__loadout">
+        <span>
+          {tool
+            ? `${tool.gradeName} · ${ITEM_DEFINITIONS[tool.itemId].name} ${activeToolAmount}개`
+            : '사용 가능한 포획 캡슐 없음'}
+        </span>
+        <span>포획력 +{Math.round(playerCapturePower * 100)}%</span>
+        <span>{moduleDefinition?.name ?? '보조 모듈 미장착'}</span>
+      </div>
+      {breakdown && (
+        <div className="capture-status__bonuses">
+          <span>체력 {formatCaptureBonus(breakdown.healthBonus + breakdown.lowHealthBonus)}</span>
+          <span>
+            상태 {formatCaptureBonus(breakdown.statusEffectBonus)}
+            {activeStatusEffectIds.length > 0 &&
+              ` · ${activeStatusEffectIds
+                .map((statusId) => ANIMAL_TARGET_STATUS_EFFECTS[statusId].name)
+                .join('/')}`}
+          </span>
+          <span className={isRearHit ? 'is-active' : ''}>
+            후방 {formatCaptureBonus(breakdown.rearHitBonus)}
+          </span>
+          <span>종별 {formatCaptureBonus(breakdown.speciesBonus)}</span>
+        </div>
+      )}
+      <p>{message || 'Q로 해제 · 왼쪽 클릭으로 현재 캡슐 투척'}</p>
+    </section>
   )
 }
 
@@ -390,7 +554,7 @@ function CompanionStatus({
 type CompactBarProps = Readonly<{
   label: string
   percent: number
-  tone: 'experience' | 'shield' | 'health'
+  tone: 'experience' | 'shield' | 'stamina' | 'health'
 }>
 
 function CompactBar({
@@ -418,6 +582,32 @@ function toPercent(value: number, maximum: number) {
   return maximum > 0
     ? Math.max(0, Math.min(100, (value / maximum) * 100))
     : 0
+}
+
+function getActionResourceLabel(
+  movementState: 'idle' | 'move' | 'sprint' | 'dodge',
+  recoveryDelayed: boolean,
+  isFull: boolean,
+) {
+  if (movementState === 'dodge') {
+    return '회피'
+  }
+
+  if (movementState === 'sprint') {
+    return '달리기'
+  }
+
+  if (isFull) {
+    return '준비'
+  }
+
+  return recoveryDelayed ? '회복 대기' : '회복 중'
+}
+
+function formatCaptureBonus(value: number) {
+  const percent = Math.round(value * 100)
+
+  return `${percent >= 0 ? '+' : ''}${percent}%`
 }
 
 function isTextInput(target: EventTarget | null) {

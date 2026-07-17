@@ -12,16 +12,23 @@ export type InventoryItemKey =
   | 'boarMeat'
   | 'roastedBoarMeat'
   | 'captureCapsule'
+  | 'reinforcedCaptureCapsule'
+  | 'precisionCaptureCapsule'
+  | 'captureScannerModule'
+  | 'captureStabilizerModule'
   | 'rabbitWindHarness'
   | 'sheepGuardianBell'
   | 'boarStoneArmor'
+  | 'woodenArrow'
 
 export type ItemCategory =
   | 'material'
   | 'foodIngredient'
   | 'food'
   | 'captureTool'
+  | 'captureModule'
   | 'companionEquipment'
+  | 'ammunition'
 
 export type ItemDefinition = Readonly<{
   id: InventoryItemKey
@@ -30,7 +37,6 @@ export type ItemDefinition = Readonly<{
   maxStack: number
   hungerRestore?: number
   animalFeedValue?: number
-  captureBonus?: number
 }>
 
 export type ItemStack = Readonly<{

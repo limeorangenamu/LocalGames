@@ -11,11 +11,20 @@ import {
   PLAYER_INITIAL_EXPERIENCE_TO_NEXT_LEVEL,
   PLAYER_INITIAL_LEVEL,
   PLAYER_MAX_HUNGER,
+  PLAYER_MAX_STAMINA,
 } from '../game/config/gameConstants'
 import { ANIMAL_DEFINITIONS } from '../game/data/animals'
 import { COMPANION_EQUIPMENT } from '../game/data/companionEquipment'
-import { TOOL_DEFINITIONS } from '../game/data/equipment'
+import {
+  getDefaultEquipmentDurability,
+  TOOL_DEFINITIONS,
+} from '../game/data/equipment'
 import { CRAFTING_RECIPES } from '../game/data/crafting'
+import {
+  CAPTURE_SUPPORT_MODULES,
+  getDefaultPlayerCapturePower,
+  normalizePlayerCapturePower,
+} from '../game/data/capture'
 import {
   DEFAULT_MAP_ID,
   getMapDefinition,
@@ -31,10 +40,15 @@ import type {
 } from '../game/types/animal'
 import type { PlacedBuilding } from '../game/types/building'
 import type {
+  CapturePreviewState,
+  CaptureSupportModuleId,
+} from '../game/types/capture'
+import type {
   CraftingRecipeId,
   CraftingStationId,
 } from '../game/types/crafting'
 import type {
+  EquipmentDurability,
   EquippedItems,
   EquipmentSlotId,
   ToolDefinitionId,
@@ -50,6 +64,7 @@ import type { MapId, WorldPoint } from '../game/types/map'
 import type { ResourceSpawnState } from '../game/types/resource'
 import type { GameSave, SaveSlotId } from '../game/types/save'
 import type { WorkAssignment } from '../game/types/work'
+import type { PlayerMovementState } from '../game/types/player'
 import {
   applyAnimalDamage,
   gainAnimalExperience,
@@ -57,6 +72,7 @@ import {
   normalizeAnimalTrust,
   recoverStoredAnimal,
 } from '../game/utils/animalInstance'
+import { getPlayerActionResourceProfile } from '../game/utils/playerActionResources'
 
 export type GameMode = 'normal' | 'capture' | 'build' | 'craft'
 export type MapViewLevel = 'world' | 'meadow' | 'current'
@@ -98,10 +114,16 @@ type GameStore = {
   playerLevel: number
   playerExperience: number
   playerExperienceToNextLevel: number
+  playerCapturePower: number
+  equippedCaptureSupportModuleId: CaptureSupportModuleId | null
   technologyPoints: number
   unlockedRecipeIds: readonly CraftingRecipeId[]
   playerShield: number
   playerMaxShield: number
+  playerStamina: number
+  playerMaxStamina: number
+  playerStaminaRecoveryDelayed: boolean
+  playerMovementState: PlayerMovementState
   hungerMessage: string
   playerWorldPosition: WorldPoint
   currentMapId: MapId
@@ -111,6 +133,8 @@ type GameStore = {
   ownedToolIds: readonly ToolDefinitionId[]
   equippedToolId: ToolDefinitionId
   equippedItems: EquippedItems
+  equipmentDurability: EquipmentDurability
+  combatMessage: string
   hotbarSlots: readonly HotbarSlot[]
   selectedHotbarIndex: number
   activeMode: GameMode
@@ -121,7 +145,7 @@ type GameStore = {
   isBaseStorageOpen: boolean
   isCraftingWorkbenchOpen: boolean
   activeCraftingStationId: CraftingStationId | null
-  captureTargetChance: number | null
+  capturePreview: CapturePreviewState | null
   captureMessage: string
   capturedAnimals: readonly CapturedAnimal[]
   activeAnimalPartyIds: readonly string[]
@@ -147,9 +171,17 @@ type GameStore = {
   lastSavedAt: number | null
   saveMessage: string
   manualSaveRequestId: number
+  completedManualSaveRequestId: number
+  lastManualSaveSucceeded: boolean | null
   requestedSaveSlotId: SaveSlotId
   setPlayerHp: (hp: number) => void
   setPlayerShieldState: (shield: number, maxShield: number) => void
+  setPlayerActionResourceState: (
+    stamina: number,
+    maxStamina: number,
+    recoveryDelayed: boolean,
+    movementState: PlayerMovementState,
+  ) => void
   gainPlayerExperience: (amount: number) => void
   unlockRecipe: (recipeId: CraftingRecipeId) => boolean
   setPlayerHunger: (hunger: number) => void
@@ -167,6 +199,10 @@ type GameStore = {
     slotId: EquipmentSlotId,
   ) => boolean
   unequipItem: (slotId: EquipmentSlotId) => boolean
+  damageEquipment: (toolId: ToolDefinitionId, amount: number) => boolean
+  damageEquippedDefensiveItems: (amount: number) => readonly ToolDefinitionId[]
+  repairEquipment: (toolId: ToolDefinitionId) => boolean
+  setCombatMessage: (combatMessage: string) => void
   assignHotbarSlot: (
     index: number,
     assignment: HotbarAssignment,
@@ -183,8 +219,11 @@ type GameStore = {
     isOpen: boolean,
     stationId?: CraftingStationId,
   ) => void
-  setCaptureTargetChance: (captureTargetChance: number | null) => void
+  setCapturePreview: (capturePreview: CapturePreviewState | null) => void
   setCaptureMessage: (captureMessage: string) => void
+  equipCaptureSupportModule: (
+    moduleId: CaptureSupportModuleId | null,
+  ) => boolean
   addCapturedAnimal: (capturedAnimal: CapturedAnimal) => void
   addAnimalToParty: (animalId: string) => boolean
   removeAnimalFromParty: (animalId: string) => boolean
@@ -244,7 +283,8 @@ type GameStore = {
   hydrateFromSave: (save: GameSave) => void
   markSaveHydrated: () => void
   setSaveStatus: (savedAt: number | null, saveMessage: string) => void
-  requestManualSave: (slotId?: SaveSlotId) => void
+  requestManualSave: (slotId?: SaveSlotId) => number
+  completeManualSave: (requestId: number, success: boolean) => void
 }
 
 const INITIAL_PLAYER_HP = 100
@@ -257,10 +297,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
   playerLevel: PLAYER_INITIAL_LEVEL,
   playerExperience: PLAYER_INITIAL_EXPERIENCE,
   playerExperienceToNextLevel: PLAYER_INITIAL_EXPERIENCE_TO_NEXT_LEVEL,
+  playerCapturePower: getDefaultPlayerCapturePower(PLAYER_INITIAL_LEVEL),
+  equippedCaptureSupportModuleId: null,
   technologyPoints: 4,
   unlockedRecipeIds: [],
   playerShield: 0,
   playerMaxShield: 0,
+  playerStamina: PLAYER_MAX_STAMINA,
+  playerMaxStamina: PLAYER_MAX_STAMINA,
+  playerStaminaRecoveryDelayed: false,
+  playerMovementState: 'idle',
   hungerMessage: '',
   playerWorldPosition: { ...getMapDefinition(DEFAULT_MAP_ID).playerSpawn },
   currentMapId: DEFAULT_MAP_ID,
@@ -270,6 +316,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   ownedToolIds: ['bare-hands'],
   equippedToolId: 'bare-hands',
   equippedItems: {},
+  equipmentDurability: {},
+  combatMessage: '',
   hotbarSlots: createEmptyHotbarSlots(),
   selectedHotbarIndex: 0,
   activeMode: 'normal',
@@ -280,7 +328,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isBaseStorageOpen: false,
   isCraftingWorkbenchOpen: false,
   activeCraftingStationId: null,
-  captureTargetChance: null,
+  capturePreview: null,
   captureMessage: '',
   capturedAnimals: [],
   activeAnimalPartyIds: [],
@@ -304,6 +352,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   lastSavedAt: null,
   saveMessage: '',
   manualSaveRequestId: 0,
+  completedManualSaveRequestId: 0,
+  lastManualSaveSucceeded: null,
   requestedSaveSlotId: 'auto',
   setPlayerHp: (hp) => set({ playerHp: hp }),
   setPlayerShieldState: (playerShield, playerMaxShield) => {
@@ -312,6 +362,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       playerMaxShield: safeMaxShield,
       playerShield: Math.max(0, Math.min(safeMaxShield, playerShield)),
+    })
+  },
+  setPlayerActionResourceState: (
+    playerStamina,
+    playerMaxStamina,
+    playerStaminaRecoveryDelayed,
+    playerMovementState,
+  ) => {
+    const safeMaxStamina = Math.max(1, playerMaxStamina)
+
+    set({
+      playerMaxStamina: safeMaxStamina,
+      playerStamina: Math.max(
+        0,
+        Math.min(safeMaxStamina, playerStamina),
+      ),
+      playerStaminaRecoveryDelayed,
+      playerMovementState,
     })
   },
   gainPlayerExperience: (amount) => {
@@ -340,6 +408,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         playerLevel,
         playerExperience,
         playerExperienceToNextLevel,
+        playerCapturePower: getDefaultPlayerCapturePower(playerLevel),
         technologyPoints:
           state.technologyPoints + gainedTechnologyPoints,
       }
@@ -457,7 +526,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return false
     }
 
-    set((state) => ({ ownedToolIds: [...state.ownedToolIds, toolId] }))
+    set((state) => {
+      const maxDurability = getDefaultEquipmentDurability(toolId)
+
+      return {
+        ownedToolIds: [...state.ownedToolIds, toolId],
+        equipmentDurability:
+          maxDurability === null
+            ? state.equipmentDurability
+            : {
+                ...state.equipmentDurability,
+                [toolId]: maxDurability,
+              },
+      }
+    })
     return true
   },
   equipTool: (toolId) => {
@@ -471,7 +553,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set((state) => {
         const equippedItems = { ...state.equippedItems }
         delete equippedItems.rightHand
-        return { equippedToolId: 'bare-hands', equippedItems }
+        return {
+          equippedToolId: 'bare-hands',
+          equippedItems,
+          combatMessage: '',
+        }
       })
       return true
     }
@@ -483,7 +569,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     if (
       !currentState.ownedToolIds.includes(toolId) ||
-      TOOL_DEFINITIONS[toolId].equipmentSlot !== slotId
+      TOOL_DEFINITIONS[toolId].equipmentSlot !== slotId ||
+      (TOOL_DEFINITIONS[toolId].maxDurability !== undefined &&
+        (currentState.equipmentDurability[toolId] ??
+          TOOL_DEFINITIONS[toolId].maxDurability ??
+          0) <= 0)
     ) {
       return false
     }
@@ -508,6 +598,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         playerMaxShield: shieldCapacity,
         playerShield:
           slotId === 'shield' ? shieldCapacity : state.playerShield,
+        combatMessage: '',
       }
     })
     return true
@@ -529,6 +620,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           slotId === 'shield' ? 0 : state.playerMaxShield,
         playerShield:
           slotId === 'shield' ? 0 : state.playerShield,
+        combatMessage: '',
       }
     })
     return true
@@ -656,8 +748,128 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ? false
         : get().isBaseStorageOpen,
     }),
-  setCaptureTargetChance: (captureTargetChance) => set({ captureTargetChance }),
+  setCapturePreview: (capturePreview) =>
+    set({ capturePreview }),
   setCaptureMessage: (captureMessage) => set({ captureMessage }),
+  equipCaptureSupportModule: (moduleId) => {
+    if (moduleId === null) {
+      set({ equippedCaptureSupportModuleId: null })
+      return true
+    }
+
+    const definition = CAPTURE_SUPPORT_MODULES[moduleId]
+
+    if (get().inventory[definition.inventoryItemId] <= 0) {
+      return false
+    }
+
+    set({ equippedCaptureSupportModuleId: moduleId })
+    return true
+  },
+  damageEquipment: (toolId, amount) => {
+    const definition = TOOL_DEFINITIONS[toolId]
+    const maxDurability = definition.maxDurability
+    const currentState = get()
+
+    if (
+      maxDurability === undefined ||
+      amount <= 0 ||
+      !currentState.ownedToolIds.includes(toolId)
+    ) {
+      return false
+    }
+
+    const currentDurability =
+      currentState.equipmentDurability[toolId] ?? maxDurability
+
+    if (currentDurability <= 0) {
+      return false
+    }
+
+    const nextDurability = Math.max(0, currentDurability - amount)
+    const broke = nextDurability === 0
+
+    set((state) => {
+      const equipmentDurability = {
+        ...state.equipmentDurability,
+        [toolId]: nextDurability,
+      }
+
+      if (!broke) {
+        return { equipmentDurability }
+      }
+
+      const equippedItems = { ...state.equippedItems }
+
+      Object.entries(equippedItems).forEach(([slotId, equippedToolId]) => {
+        if (equippedToolId === toolId) {
+          delete equippedItems[slotId as EquipmentSlotId]
+        }
+      })
+
+      return {
+        equipmentDurability,
+        equippedItems,
+        equippedToolId:
+          state.equippedToolId === toolId
+            ? 'bare-hands'
+            : state.equippedToolId,
+        playerMaxShield:
+          definition.equipmentSlot === 'shield'
+            ? 0
+            : state.playerMaxShield,
+        playerShield:
+          definition.equipmentSlot === 'shield'
+            ? 0
+            : state.playerShield,
+        combatMessage: `${definition.name}의 내구도가 모두 소진되었습니다.`,
+      }
+    })
+    return broke
+  },
+  damageEquippedDefensiveItems: (amount) => {
+    const defensiveSlots: readonly EquipmentSlotId[] = [
+      'head',
+      'body',
+      'cloak',
+      'shield',
+    ]
+    const currentState = get()
+    const equippedDefensiveToolIds = defensiveSlots
+      .map((slotId) => currentState.equippedItems[slotId])
+      .filter((toolId): toolId is ToolDefinitionId => toolId !== undefined)
+
+    return equippedDefensiveToolIds.filter((toolId) =>
+      get().damageEquipment(toolId, amount),
+    )
+  },
+  repairEquipment: (toolId) => {
+    const definition = TOOL_DEFINITIONS[toolId]
+    const maxDurability = definition.maxDurability
+    const repairIngredients = definition.repairIngredients ?? []
+    const currentState = get()
+
+    if (
+      maxDurability === undefined ||
+      !currentState.ownedToolIds.includes(toolId) ||
+      (currentState.equipmentDurability[toolId] ?? maxDurability) >=
+        maxDurability ||
+      repairIngredients.length === 0 ||
+      !currentState.consumeInventoryItems(repairIngredients)
+    ) {
+      return false
+    }
+
+    set((state) => ({
+      equipmentDurability: {
+        ...state.equipmentDurability,
+        [toolId]: maxDurability,
+      },
+      combatMessage: `${definition.name} 수리를 완료했습니다.`,
+    }))
+    return true
+  },
+  setCombatMessage: (combatMessage) => set({ combatMessage }),
   addCapturedAnimal: (capturedAnimal) =>
     set((state) => {
       const canJoinParty =
@@ -1266,6 +1478,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ? TOOL_DEFINITIONS[equippedShieldId].shieldCapacity ?? 0
       : 0
     const savedMaxShield = equippedShieldCapacity
+    const actionResourceProfile = getPlayerActionResourceProfile(
+      save.player.equippedToolId,
+      save.player.equippedItems,
+    )
 
     const activeAnimalPartyIds = normalizeActiveAnimalPartyIds(
       save.player.activeAnimalPartyIds,
@@ -1295,6 +1511,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       playerExperienceToNextLevel:
         save.player.experienceToNextLevel ??
         PLAYER_INITIAL_EXPERIENCE_TO_NEXT_LEVEL,
+      playerCapturePower: normalizePlayerCapturePower(
+        save.player.capturePower ?? Number.NaN,
+        save.player.level ?? PLAYER_INITIAL_LEVEL,
+      ),
+      equippedCaptureSupportModuleId:
+        save.player.equippedCaptureSupportModuleId ?? null,
       technologyPoints: save.player.technologyPoints ?? 4,
       unlockedRecipeIds: save.player.unlockedRecipeIds
         ? [...save.player.unlockedRecipeIds]
@@ -1304,6 +1526,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         savedMaxShield,
         save.player.shield ?? equippedShieldCapacity,
       ),
+      playerMaxStamina: actionResourceProfile.maxStamina,
+      playerStamina: Math.min(
+        actionResourceProfile.maxStamina,
+        save.player.stamina ?? actionResourceProfile.maxStamina,
+      ),
+      playerStaminaRecoveryDelayed: false,
+      playerMovementState: 'idle',
       playerWorldPosition: { ...save.player.position },
       currentMapId: save.player.currentMapId,
       currentMapName: getMapDefinition(save.player.currentMapId).name,
@@ -1314,6 +1543,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ownedToolIds,
       equippedToolId: save.player.equippedToolId,
       equippedItems: { ...save.player.equippedItems },
+      equipmentDurability: {
+        ...(save.player.equipmentDurability ?? {}),
+      },
+      combatMessage: '',
       hotbarSlots: save.player.hotbarSlots
         ? save.player.hotbarSlots.map((slot) => (slot ? { ...slot } : null))
         : createEmptyHotbarSlots(),
@@ -1332,6 +1565,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       companionActiveStatusEffectIds: [],
       companionPartnerSkillActive: false,
       companionLastSkillName: null,
+      capturePreview: null,
       placedBuildings: primaryBase ? [...primaryBase.buildings] : [],
       mapResourceStates,
       saveHydrated: true,
@@ -1342,11 +1576,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
   markSaveHydrated: () => set({ saveHydrated: true }),
   setSaveStatus: (lastSavedAt, saveMessage) =>
     set({ lastSavedAt, saveMessage }),
-  requestManualSave: (requestedSaveSlotId = 'auto') =>
-    set((state) => ({
-      manualSaveRequestId: state.manualSaveRequestId + 1,
+  requestManualSave: (requestedSaveSlotId = 'auto') => {
+    const requestId = get().manualSaveRequestId + 1
+
+    set({
+      manualSaveRequestId: requestId,
       requestedSaveSlotId,
-    })),
+      lastManualSaveSucceeded: null,
+    })
+    return requestId
+  },
+  completeManualSave: (completedManualSaveRequestId, success) =>
+    set({
+      completedManualSaveRequestId,
+      lastManualSaveSucceeded: success,
+    }),
 }))
 
 function isSameHotbarAssignment(

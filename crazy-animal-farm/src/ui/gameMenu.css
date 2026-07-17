@@ -90,7 +90,7 @@
 .game-menu__content {
   min-height: 0;
   padding: clamp(0.8rem, 2.2vw, 1.7rem);
-  overflow: auto;
+  overflow: hidden;
 }
 
 .menu-section-heading {
@@ -419,6 +419,51 @@
   background: rgb(83 58 18 / 88%);
   cursor: pointer;
   font-size: 0.52rem;
+}
+
+.inventory-slot__durability {
+  position: absolute;
+  bottom: 0.14rem;
+  left: 0.2rem;
+  color: #b9d2b5;
+  font-size: 0.48rem;
+  text-shadow: 0 1px 2px #000;
+}
+
+.capture-profile-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.48rem 0.62rem;
+  border: 1px solid rgb(199 151 235 / 22%);
+  border-radius: 0.55rem;
+  color: #cbb5d8;
+  background: rgb(47 25 59 / 42%);
+  font-size: 0.68rem;
+}
+
+.capture-profile-summary strong {
+  color: #f0cf83;
+  font-size: 0.66rem;
+}
+
+.action-resource-profile-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.48rem 0.62rem;
+  border: 1px solid rgb(235 205 93 / 22%);
+  border-radius: 0.55rem;
+  color: #d7cfaa;
+  background: rgb(60 50 20 / 42%);
+  font-size: 0.68rem;
+}
+
+.action-resource-profile-summary strong {
+  color: #f4df73;
+  font-size: 0.66rem;
 }
 
 .quickbar-editor {
@@ -773,7 +818,7 @@
 }
 
 .animal-roster__slots em {
-  color: #809488;
+  color: #bcd8c7;
   font-size: 0.67rem;
   font-style: normal;
 }
@@ -840,7 +885,7 @@
 }
 
 .animal-storage__list button em {
-  color: #829588;
+  color: #bcd8c7;
   font-size: 0.63rem;
   font-style: normal;
 }
@@ -953,14 +998,14 @@
   justify-content: space-between;
   border: 1px solid rgb(216 236 199 / 12%);
   border-radius: 0.42rem;
-  color: #85998c;
-  background: rgb(23 47 33 / 46%);
+  color: #a9c2c6;
+  background: rgb(20 50 54 / 45%);
   font-size: 0.62rem;
   gap: 0.5rem;
 }
 
 .animal-details__element-matchup strong {
-  color: #dce7d5;
+  color: #91e7ff;
   text-align: right;
 }
 
@@ -1029,7 +1074,7 @@
 
 .animal-skill-slots button span,
 .animal-learned-skills button span {
-  color: #83998b;
+  color: #daf3e3;
   font-size: 0.55rem;
   line-height: 1.35;
 }
@@ -1543,6 +1588,691 @@
   }
 }
 
+/* 탭별 스크롤을 분리한 고정형 인벤토리 레이아웃 */
+.game-menu__content:not(.game-menu__content--inventory) > * {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding-right: 0.35rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #6f815f #14271c;
+  scrollbar-width: thin;
+}
+
+.game-menu__content.game-menu__content--inventory {
+  padding: clamp(0.65rem, 1.4vw, 1rem);
+  overflow: hidden;
+}
+
+.inventory-panel {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1.16fr) minmax(310px, 0.84fr);
+  align-items: stretch;
+  gap: clamp(0.65rem, 1.2vw, 1rem);
+  overflow: hidden;
+}
+
+.inventory-items-panel {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.72rem;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  border: 1px solid rgb(226 239 206 / 20%);
+  border-radius: 0.7rem;
+  background: rgb(4 17 12 / 55%);
+  overflow: hidden;
+}
+
+.inventory-panel__heading {
+  display: flex;
+  min-height: 2.4rem;
+  padding: 0 0.08rem 0.55rem;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgb(226 239 206 / 13%);
+  gap: 0.7rem;
+}
+
+.inventory-panel__heading > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.inventory-panel__heading h2 {
+  margin: 0;
+  color: #f0e8c7;
+  font-size: 0.92rem;
+}
+
+.inventory-panel__heading span {
+  color: #8ea394;
+  font-size: 0.62rem;
+}
+
+.inventory-heading-actions > button {
+  padding: 0.3rem 0.58rem;
+  font-size: 0.6rem;
+}
+
+.inventory-grid-scroll {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overscroll-behavior: contain;
+}
+
+.inventory-grid {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  background: rgb(1 12 8 / 22%);
+}
+
+.inventory-slot {
+  min-height: clamp(58px, 7vh, 72px);
+  aspect-ratio: auto;
+  padding: 0.18rem;
+}
+
+.inventory-slot__icon {
+  font-size: clamp(1rem, 1.7vw, 1.35rem);
+}
+
+.inventory-slot__name {
+  font-size: clamp(0.46rem, 0.62vw, 0.57rem);
+}
+
+.inventory-panel__feedback,
+.avatar-equipment__message {
+  min-height: 0;
+  margin: 0.45rem 0 0;
+  padding: 0.4rem 0.5rem 0;
+  border-top: 1px solid rgb(223 239 204 / 12%);
+  color: #decf91;
+  font-size: 0.62rem;
+  text-align: center;
+}
+
+.avatar-equipment {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.72rem;
+  grid-template-rows: auto 5px auto minmax(0, 1fr) auto;
+  gap: 0.48rem;
+  overflow: hidden;
+  border-color: rgb(226 239 206 / 20%);
+  background:
+    radial-gradient(circle at 28% 58%, rgb(72 104 65 / 22%), transparent 35%),
+    rgb(5 18 13 / 58%);
+}
+
+.equipment-profile {
+  padding-bottom: 0.45rem;
+}
+
+.equipment-profile__level {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.equipment-profile__experience {
+  height: 5px;
+  margin: 0;
+}
+
+.equipment-profile__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.equipment-profile__stats > div {
+  display: flex;
+  min-width: 0;
+  padding: 0.42rem 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid rgb(224 238 203 / 14%);
+  border-radius: 0.42rem;
+  background: rgb(15 37 25 / 58%);
+  gap: 0.4rem;
+}
+
+.equipment-profile__stats > div:last-child {
+  grid-column: auto;
+}
+
+.equipment-profile__stats span {
+  color: #8fa494;
+  font-size: 0.56rem;
+}
+
+.equipment-profile__stats strong {
+  overflow: hidden;
+  color: #efe0a2;
+  font-size: 0.62rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avatar-equipment__layout {
+  position: static;
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(105px, 0.75fr) minmax(0, 1.25fr);
+  align-items: stretch;
+  gap: 0.6rem;
+}
+
+.avatar-equipment__avatar {
+  position: static;
+  display: grid;
+  width: auto;
+  height: auto;
+  min-height: 210px;
+  place-items: center;
+  align-content: center;
+  transform: none;
+  border: 1px solid rgb(219 236 201 / 12%);
+  border-radius: 0.55rem;
+  background: rgb(7 25 17 / 42%);
+  font-size: 3.4rem;
+}
+
+.avatar-equipment__body {
+  margin-top: -2rem;
+  font-size: 5.4rem;
+}
+
+.equipment-slot-list {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.equipment-slot,
+.equipment-slot--rightHand,
+.equipment-slot--cloak,
+.equipment-slot--shield {
+  position: static;
+  width: auto;
+  min-height: 0;
+  padding: 0.45rem;
+  place-content: center;
+  transform: none;
+}
+
+.equipment-slot button {
+  width: 100%;
+  margin-top: 0.22rem;
+}
+
+.equipment-slot__durability {
+  display: block;
+  margin-top: 0.2rem;
+  color: #9db29e;
+  font-size: 0.5rem;
+}
+
+.equipment-slot .equipment-slot__repair {
+  width: auto;
+  margin: 0.2rem auto 0;
+  padding: 0.16rem 0.42rem;
+  border-color: rgb(230 203 93 / 42%);
+  color: #f1df98;
+  cursor: pointer;
+  font-size: 0.5rem;
+}
+
+.menu-hotbar {
+  min-height: 0;
+}
+
+@media (max-width: 940px) and (min-width: 681px) {
+  .inventory-panel {
+    grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  }
+
+  .inventory-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .inventory-slot {
+    min-height: 58px;
+  }
+
+  .avatar-equipment__layout {
+    grid-template-columns: minmax(85px, 0.65fr) minmax(0, 1.35fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .game-menu__content.game-menu__content--inventory {
+    overflow: hidden;
+  }
+
+  .inventory-panel {
+    display: grid;
+    height: 100%;
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .inventory-items-panel {
+    min-height: 430px;
+  }
+
+  .inventory-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .avatar-equipment {
+    min-height: 390px;
+  }
+}
+
+/* 최종 색상 레이어 */
+.game-menu { --farm-ink: #29422e; --farm-moss: #87a56f; --farm-orange: #d55d42; color: var(--farm-ink); background: rgb(31 75 42 / 58%); }
+.game-menu__window { border: 5px solid var(--farm-ink); border-radius: 0.8rem; background: linear-gradient(145deg, #fffde1, #e7f0c7); box-shadow: 0 0.62rem 0 var(--farm-ink), 0 1.8rem 3.6rem rgb(18 50 29 / 42%); }
+.game-menu__header { border-bottom: 3px solid var(--farm-moss); background: rgb(255 249 214 / 72%); }
+.game-menu__tabs button { color: #687667; }
+.game-menu__tabs button:hover:not(:disabled), .game-menu__tabs button.is-active { color: #31583a; background: #edf3d4; }
+.game-menu__tabs button.is-active::after { background: var(--farm-orange); }
+.game-menu__close, .game-menu button:not(.hotbar__select):not(.hotbar__clear) { border: 3px solid var(--farm-ink); border-radius: 0.42rem; color: #fff9db; background: var(--farm-orange); box-shadow: 0 3px 0 var(--farm-ink); }
+.game-menu button:hover:not(:disabled) { background: #ec704d; }
+.game-menu__content { background: rgb(255 249 214 / 42%); }
+.technology-panel__heading, .technology-card, .inventory-items-panel, .avatar-equipment, .animal-roster, .animal-storage, .animal-details, .options-panel__save, .options-save-slot, .controls-panel__list div, .bestiary-grid article, .quickbar-editor, .food-crafting, .inventory-crafting-notice { border: 3px solid #48694a; border-radius: 0.55rem; color: var(--farm-ink); background: rgb(255 253 225 / 88%); box-shadow: 0 0.22rem 0 rgb(41 66 46 / 42%); }
+.technology-points, .technology-card__icon, .equipment-slot, .inventory-slot, .animal-roster__slots button, .animal-storage__list button, .animal-skill-slots button, .animal-learned-skills button, .animal-details__partner-skill > div:last-of-type, .options-save-slot > span, .quickbar-editor__slot { border: 2px solid var(--farm-moss); border-radius: 0.4rem; color: #31583a; background: #edf3d4; }
+.technology-points { border-color: #b87835; background: #fff0ae; }
+.technology-points > strong { color: #8a3d32; }
+.technology-card.is-unlocked, .bestiary-grid article:not(.is-locked), .animal-roster__slots button.is-selected, .animal-skill-slots button.is-selected, .quickbar-editor__slot.is-selected { border-color: var(--farm-ink); background: #f7dc76; }
+.technology-card p, .technology-card dl, .technology-card__status, .inventory-panel__feedback, .animal-details p, .animal-details small, .options-panel p, .options-save-slot small, .controls-panel__list span, .bestiary-grid p { color: #687667; }
+.inventory-slot.is-filled, .equipment-slot.is-filled, .quickbar-editor__slot.is-filled { background: #f5efc9; }
+.options-save-slot.is-auto { border-color: #45708c; background: #dceff0; }
+.options-save-slot .is-delete { background: #b84936; }
+
+/* 스타듀밸리 풍의 차분한 야간 농장 팔레트 — 최종 적용 */
+.game-menu { --farm-ink: #14212f; --farm-moss: #6f935f; --farm-orange: #bd713d; color: #f7e9c6; background: rgb(8 18 31 / 74%); }
+.game-menu__window { border-color: #14212f; background: linear-gradient(145deg, #30485c, #1d3043); box-shadow: 0 0.62rem 0 #14212f, 0 1.8rem 3.6rem rgb(4 9 16 / 62%); }
+.game-menu__header { border-bottom-color: #6f935f; background: #263d50; }
+.game-menu__tabs button { color: #c4d3dc; }
+.game-menu__tabs button:hover:not(:disabled), .game-menu__tabs button.is-active { color: #fff1c9; background: #36536a; }
+.game-menu__content { background: rgb(18 34 49 / 58%); }
+.technology-panel__heading, .technology-card, .inventory-items-panel, .avatar-equipment, .animal-roster, .animal-storage, .animal-details, .options-panel__save, .options-save-slot, .controls-panel__list div, .bestiary-grid article, .quickbar-editor, .food-crafting, .inventory-crafting-notice { border-color: #587a75; color: #f7e9c6; background: linear-gradient(145deg, #30495c, #243b4e); box-shadow: 0 0.22rem 0 rgb(10 22 34 / 72%); }
+.technology-points, .technology-card__icon, .equipment-slot, .inventory-slot, .animal-roster__slots button, .animal-storage__list button, .animal-skill-slots button, .animal-learned-skills button, .animal-details__partner-skill > div:last-of-type, .options-save-slot > span, .quickbar-editor__slot { border-color: #648277; color: #f7e9c6; background: #36536a; }
+.technology-card p, .technology-card dl, .technology-card__status, .inventory-panel__feedback, .animal-details p, .animal-details small, .options-panel p, .options-save-slot small, .controls-panel__list span, .bestiary-grid p { color: #c4d3dc; }
+.technology-card.is-unlocked, .bestiary-grid article:not(.is-locked), .animal-roster__slots button.is-selected, .animal-skill-slots button.is-selected, .quickbar-editor__slot.is-selected { border-color: #dfb45b; background: #625339; }
+.inventory-slot.is-filled, .equipment-slot.is-filled, .quickbar-editor__slot.is-filled { background: #3b566a; }
+
+/* 스타듀밸리 풍의 차분한 야간 농장 팔레트 */
+.game-menu {
+  --farm-ink: #14212f;
+  --farm-moss: #6f935f;
+  --farm-orange: #bd713d;
+  color: #f7e9c6;
+  background: rgb(8 18 31 / 74%);
+}
+
+.game-menu__window {
+  border-color: #14212f;
+  background: linear-gradient(145deg, #30485c, #1d3043);
+  box-shadow: 0 0.62rem 0 #14212f, 0 1.8rem 3.6rem rgb(4 9 16 / 62%);
+}
+
+.game-menu__header { border-bottom-color: #6f935f; background: #263d50; }
+.game-menu__tabs button { color: #c4d3dc; }
+.game-menu__tabs button:hover:not(:disabled),
+.game-menu__tabs button.is-active { color: #fff1c9; background: #36536a; }
+.game-menu__content { background: rgb(18 34 49 / 58%); }
+
+.technology-panel__heading,
+.technology-card,
+.inventory-items-panel,
+.avatar-equipment,
+.animal-roster,
+.animal-storage,
+.animal-details,
+.options-panel__save,
+.options-save-slot,
+.controls-panel__list div,
+.bestiary-grid article,
+.quickbar-editor,
+.food-crafting,
+.inventory-crafting-notice {
+  border-color: #587a75;
+  color: #f7e9c6;
+  background: linear-gradient(145deg, #30495c, #243b4e);
+  box-shadow: 0 0.22rem 0 rgb(10 22 34 / 72%);
+}
+
+.technology-points,
+.technology-card__icon,
+.equipment-slot,
+.inventory-slot,
+.animal-roster__slots button,
+.animal-storage__list button,
+.animal-skill-slots button,
+.animal-learned-skills button,
+.animal-details__partner-skill > div:last-of-type,
+.options-save-slot > span,
+.quickbar-editor__slot { border-color: #648277; color: #f7e9c6; background: #36536a; }
+
+.technology-card p,
+.technology-card dl,
+.technology-card__status,
+.inventory-panel__feedback,
+.animal-details p,
+.animal-details small,
+.options-panel p,
+.options-save-slot small,
+.controls-panel__list span,
+.bestiary-grid p { color: #c4d3dc; }
+
+.technology-card.is-unlocked,
+.bestiary-grid article:not(.is-locked),
+.animal-roster__slots button.is-selected,
+.animal-skill-slots button.is-selected,
+.quickbar-editor__slot.is-selected { border-color: #dfb45b; background: #625339; }
+
+.inventory-slot.is-filled,
+.equipment-slot.is-filled,
+.quickbar-editor__slot.is-filled { background: #3b566a; }
+
+/* 최종 테마 우선순위: 인벤토리 레이아웃 보정 뒤에서도 타이틀 화면의 톤을 유지한다. */
+.game-menu { color: var(--farm-ink); background: rgb(31 75 42 / 58%); }
+.game-menu__window { border: 5px solid var(--farm-ink); border-radius: 0.8rem; background: radial-gradient(circle at 92% 8%, rgb(240 198 93 / 42%), transparent 20%), linear-gradient(145deg, #fffde1, #e7f0c7); box-shadow: 0 0.62rem 0 var(--farm-ink), 0 1.8rem 3.6rem rgb(18 50 29 / 42%); }
+.game-menu__header { border-bottom: 3px solid var(--farm-moss); background: rgb(255 249 214 / 72%); }
+.game-menu__tabs button { color: #687667; }
+.game-menu__tabs button:hover:not(:disabled),
+.game-menu__tabs button.is-active { color: #31583a; background: #edf3d4; }
+.game-menu__tabs button.is-active::after { background: var(--farm-orange); }
+.game-menu__close,
+.game-menu button:not(.hotbar__select):not(.hotbar__clear) { border: 3px solid var(--farm-ink); border-radius: 0.42rem; color: #fff9db; background: var(--farm-orange); box-shadow: 0 3px 0 var(--farm-ink); }
+.game-menu button:hover:not(:disabled) { background: #ec704d; }
+.game-menu__content { background: rgb(255 249 214 / 42%); }
+.technology-panel__heading,
+.technology-card,
+.inventory-items-panel,
+.avatar-equipment,
+.animal-roster,
+.animal-storage,
+.animal-details,
+.options-panel__save,
+.options-save-slot,
+.controls-panel__list div,
+.bestiary-grid article,
+.quickbar-editor,
+.food-crafting,
+.inventory-crafting-notice { border: 3px solid #48694a; border-radius: 0.55rem; color: var(--farm-ink); background: rgb(255 253 225 / 88%); box-shadow: 0 0.22rem 0 rgb(41 66 46 / 42%); }
+.technology-points,
+.technology-card__icon,
+.equipment-profile__level,
+.equipment-slot,
+.inventory-slot,
+.animal-roster__slots button,
+.animal-storage__list button,
+.animal-skill-slots button,
+.animal-learned-skills button,
+.animal-details__partner-skill > div:last-of-type,
+.options-save-slot > span,
+.quickbar-editor__slot { border: 2px solid var(--farm-moss); border-radius: 0.4rem; color: #31583a; background: #edf3d4; }
+.technology-points { border-color: #b87835; background: #fff0ae; }
+.technology-points > strong { color: #8a3d32; }
+.technology-card:hover,
+.controls-panel__list div:hover,
+.bestiary-grid article:hover,
+.animal-roster__slots button:hover:not(:disabled),
+.animal-storage__list button:hover,
+.animal-skill-slots button:hover,
+.animal-learned-skills button:hover:not(:disabled) { border-color: var(--farm-ink); background: #fff8d4; box-shadow: 0 0.32rem 0 var(--farm-ink); }
+.technology-card.is-unlocked,
+.bestiary-grid article:not(.is-locked),
+.animal-roster__slots button.is-selected,
+.animal-skill-slots button.is-selected,
+.quickbar-editor__slot.is-selected { border-color: var(--farm-ink); background: #f7dc76; }
+.technology-card p,
+.technology-card dl,
+.technology-card__status,
+.inventory-panel__feedback,
+.animal-details p,
+.animal-details small,
+.options-panel p,
+.options-save-slot small,
+.controls-panel__list span,
+.bestiary-grid p { color: #687667; }
+.inventory-slot.is-filled,
+.equipment-slot.is-filled,
+.quickbar-editor__slot.is-filled { background: #f5efc9; }
+.options-save-slot.is-auto { border-color: #45708c; background: #dceff0; }
+.options-save-slot .is-delete { background: #b84936; }
+
+/* 타이틀 화면의 선명한 농장 모험 스타일을 메뉴 전체에 적용한다. */
+.game-menu {
+  --farm-ink: #29422e;
+  --farm-cream: #fff9d6;
+  --farm-leaf: #4d984e;
+  --farm-moss: #87a56f;
+  --farm-orange: #d55d42;
+  --farm-gold: #f0c65d;
+  color: var(--farm-ink);
+  background: rgb(31 75 42 / 58%);
+  backdrop-filter: blur(5px);
+}
+
+.game-menu__window {
+  border: 5px solid var(--farm-ink);
+  border-radius: 0.8rem;
+  background:
+    radial-gradient(circle at 92% 8%, rgb(240 198 93 / 42%), transparent 20%),
+    linear-gradient(145deg, #fffde1, #e7f0c7);
+  box-shadow:
+    0 0.62rem 0 var(--farm-ink),
+    0 1.8rem 3.6rem rgb(18 50 29 / 42%);
+}
+
+.game-menu__header {
+  padding: 0.58rem 0.72rem 0;
+  border-bottom: 3px solid var(--farm-moss);
+  background: rgb(255 249 214 / 72%);
+}
+
+.game-menu__tabs button {
+  padding-bottom: 0.72rem;
+  color: #687667;
+  font-weight: 1000;
+}
+
+.game-menu__tabs button::after {
+  height: 4px;
+  border-radius: 0.25rem 0.25rem 0 0;
+}
+
+.game-menu__tabs button:hover:not(:disabled),
+.game-menu__tabs button.is-active {
+  color: #31583a;
+  background: #edf3d4;
+}
+
+.game-menu__tabs button.is-active::after {
+  background: var(--farm-orange);
+}
+
+.game-menu__close,
+.game-menu button:not(.hotbar__select):not(.hotbar__clear) {
+  border: 3px solid var(--farm-ink);
+  border-radius: 0.42rem;
+  color: #fff9db;
+  background: var(--farm-orange);
+  box-shadow: 0 3px 0 var(--farm-ink);
+  font-weight: 900;
+}
+
+.game-menu__close {
+  margin-bottom: 0.48rem;
+  color: #fff9db;
+}
+
+.game-menu button:hover:not(:disabled) {
+  background: #ec704d;
+  filter: brightness(1.03);
+}
+
+.game-menu button:active:not(:disabled) {
+  box-shadow: 0 1px 0 var(--farm-ink);
+  transform: translateY(2px);
+}
+
+.game-menu__content {
+  background: rgb(255 249 214 / 42%);
+}
+
+.menu-section-heading h2,
+.technology-panel__heading h2,
+.animal-details h2,
+.animal-details h3,
+.bestiary-grid h3,
+.options-panel h3 {
+  color: #21f452;
+}
+
+.menu-section-heading > span,
+.technology-panel__heading p,
+.menu-section-heading__eyebrow {
+  color: #21f452;
+}
+
+.menu-section-heading__eyebrow,
+.technology-points > span {
+  color: #bb6542;
+}
+
+.technology-panel__heading,
+.technology-card,
+.inventory-items-panel,
+.avatar-equipment,
+.animal-roster,
+.animal-storage,
+.animal-details,
+.options-panel__save,
+.options-save-slot,
+.controls-panel__list div,
+.bestiary-grid article,
+.quickbar-editor,
+.food-crafting,
+.inventory-crafting-notice {
+  border: 3px solid #48694a;
+  border-radius: 0.55rem;
+  color: var(--farm-ink);
+  background: rgb(255 253 225 / 88%);
+  box-shadow: 0 0.22rem 0 rgb(41 66 46 / 42%);
+}
+
+.technology-points,
+.technology-card__icon,
+.equipment-profile__level,
+.equipment-slot,
+.inventory-slot,
+.animal-roster__slots button,
+.animal-storage__list button,
+.animal-skill-slots button,
+.animal-learned-skills button,
+.animal-details__partner-skill > div:last-of-type,
+.options-save-slot > span,
+.quickbar-editor__slot {
+  border: 2px solid var(--farm-moss);
+  border-radius: 0.4rem;
+  color: #31583a;
+  background: #edf3d4;
+}
+
+.technology-points {
+  border-color: #b87835;
+  background: #fff0ae;
+}
+
+.technology-points > strong {
+  color: #8a3d32;
+}
+
+.technology-card:hover,
+.controls-panel__list div:hover,
+.bestiary-grid article:hover,
+.animal-roster__slots button:hover:not(:disabled),
+.animal-storage__list button:hover,
+.animal-skill-slots button:hover,
+.animal-learned-skills button:hover:not(:disabled) {
+  border-color: var(--farm-ink);
+  background: #fff8d4;
+  box-shadow: 0 0.32rem 0 var(--farm-ink);
+}
+
+.technology-card.is-unlocked,
+.bestiary-grid article:not(.is-locked),
+.animal-roster__slots button.is-selected,
+.animal-skill-slots button.is-selected,
+.quickbar-editor__slot.is-selected {
+  border-color: var(--farm-ink);
+  background: #f7dc76;
+}
+
+.technology-card p,
+.technology-card dl,
+.technology-card__status,
+.inventory-panel__feedback,
+.animal-details p,
+.animal-details small,
+.options-panel p,
+.options-save-slot small,
+.controls-panel__list span,
+.bestiary-grid p {
+  color: #687667;
+}
+
+.inventory-slot.is-filled,
+.equipment-slot.is-filled,
+.quickbar-editor__slot.is-filled {
+  background: #f5efc9;
+}
+
+.inventory-slot.is-selected,
+.equipment-slot.is-selected,
+.quickbar-editor__slot.is-selected {
+  box-shadow: inset 0 0 0 2px rgb(255 249 214 / 85%);
+}
+
+.options-save-slot.is-auto {
+  border-color: #45708c;
+  background: #dceff0;
+}
+
+.options-save-slot .is-delete {
+  background: #b84936;
+}
+
+.game-menu button:focus-visible,
+.game-menu [draggable='true']:focus-visible {
+  outline: 4px solid #fff3a3;
+  outline-offset: 3px;
+}
+
 /* 인벤토리 중심 메뉴 레이아웃 */
 .game-menu {
   grid-template-rows: minmax(0, 1fr) auto;
@@ -1973,5 +2703,339 @@
   .menu-hotbar > span,
   .hotbar--menu .hotbar__name {
     display: none;
+  }
+}
+
+/* 최종 인벤토리 고정 규칙: 이전 반응형 선언보다 뒤에서 적용한다. */
+.game-menu__content.game-menu__content--inventory {
+  padding: clamp(0.65rem, 1.4vw, 1rem);
+  overflow: hidden;
+}
+
+.inventory-panel {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1.16fr) minmax(310px, 0.84fr);
+  align-items: stretch;
+  gap: clamp(0.65rem, 1.2vw, 1rem);
+  overflow: hidden;
+}
+
+.inventory-grid-scroll {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.inventory-grid {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
+.inventory-slot {
+  min-height: clamp(58px, 7vh, 72px);
+  aspect-ratio: auto;
+  padding: 0.18rem;
+}
+
+.avatar-equipment {
+  min-width: 0;
+  min-height: 0;
+  padding: 0.72rem;
+  grid-template-rows: auto 5px auto minmax(0, 1fr) auto;
+  gap: 0.48rem;
+  overflow: hidden;
+}
+
+.equipment-profile {
+  padding-bottom: 0.45rem;
+}
+
+.equipment-profile__level {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.equipment-profile__experience {
+  height: 5px;
+  margin: 0;
+}
+
+.avatar-equipment__layout {
+  position: static;
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(105px, 0.75fr) minmax(0, 1.25fr);
+  align-items: stretch;
+  gap: 0.6rem;
+}
+
+.avatar-equipment__avatar {
+  position: static;
+  width: auto;
+  height: auto;
+  min-height: 210px;
+  transform: none;
+}
+
+.equipment-slot,
+.equipment-slot--rightHand,
+.equipment-slot--cloak,
+.equipment-slot--shield {
+  position: static;
+  width: auto;
+  min-height: 0;
+  padding: 0.45rem;
+  transform: none;
+}
+
+@media (max-width: 940px) and (min-width: 681px) {
+  .inventory-panel {
+    grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  }
+
+  .inventory-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .avatar-equipment {
+    min-height: 0;
+  }
+
+  .avatar-equipment__layout {
+    grid-template-columns: minmax(85px, 0.65fr) minmax(0, 1.35fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .game-menu__content.game-menu__content--inventory {
+    overflow: hidden;
+  }
+
+  .inventory-panel {
+    display: grid;
+    height: 100%;
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .inventory-items-panel {
+    min-height: 430px;
+  }
+
+  .inventory-grid-scroll {
+    height: auto;
+  }
+
+  .inventory-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .avatar-equipment {
+    min-height: 390px;
+  }
+}
+
+/* 최종 색상 우선순위: 스타듀밸리 풍의 차분한 야간 농장 팔레트 */
+.game-menu { --farm-ink: #14212f; --farm-moss: #6f935f; --farm-orange: #bd713d; color: #f7e9c6; background: rgb(8 18 31 / 74%); }
+.game-menu__window { border: 5px solid #14212f; border-radius: 0.8rem; background: linear-gradient(145deg, #30485c, #1d3043); box-shadow: 0 0.62rem 0 #14212f, 0 1.8rem 3.6rem rgb(4 9 16 / 62%); }
+.game-menu__header { border-bottom: 3px solid #6f935f; background: #263d50; }
+.game-menu__tabs button { color: #c4d3dc; }
+.game-menu__tabs button:hover:not(:disabled), .game-menu__tabs button.is-active { color: #fff1c9; background: #36536a; }
+.game-menu__tabs button.is-active::after { background: #bd713d; }
+.game-menu__close, .game-menu button:not(.hotbar__select):not(.hotbar__clear) { border: 3px solid #14212f; border-radius: 0.42rem; color: #fff1c9; background: #bd713d; box-shadow: 0 3px 0 #14212f; }
+.game-menu button:hover:not(:disabled) { background: #d88445; }
+.game-menu__content { background: rgb(18 34 49 / 58%); }
+.technology-panel__heading, .technology-card, .inventory-items-panel, .avatar-equipment, .animal-roster, .animal-storage, .animal-details, .options-panel__save, .options-save-slot, .controls-panel__list div, .bestiary-grid article, .quickbar-editor, .food-crafting, .inventory-crafting-notice { border: 3px solid #587a75; border-radius: 0.55rem; color: #f7e9c6; background: linear-gradient(145deg, #30495c, #243b4e); box-shadow: 0 0.22rem 0 rgb(10 22 34 / 72%); }
+.technology-points, .technology-card__icon, .equipment-slot, .inventory-slot, .animal-roster__slots button, .animal-storage__list button, .animal-skill-slots button, .animal-learned-skills button, .animal-details__partner-skill > div:last-of-type, .options-save-slot > span, .quickbar-editor__slot { border: 2px solid #648277; border-radius: 0.4rem; color: #f7e9c6; background: #36536a; }
+.technology-points { border-color: #bd8d43; background: #635337; }
+.technology-points > strong { color: #f2c568; }
+.technology-card.is-unlocked, .bestiary-grid article:not(.is-locked), .animal-roster__slots button.is-selected, .animal-skill-slots button.is-selected, .quickbar-editor__slot.is-selected { border-color: #dfb45b; background: #625339; }
+.technology-card p, .technology-card dl, .technology-card__status, .inventory-panel__feedback, .animal-details p, .animal-details small, .options-panel p, .options-save-slot small, .controls-panel__list span, .bestiary-grid p { color: #c4d3dc; }
+.inventory-slot.is-filled, .equipment-slot.is-filled, .quickbar-editor__slot.is-filled { background: #3b566a; }
+.options-save-slot.is-auto { border-color: #5d91a8; background: #29495f; }
+.options-save-slot .is-delete { background: #9f4d40; }
+
+/* 옵션 내부의 저장/불러오기 전환은 시작 화면 슬롯 흐름을 재사용한다. */
+.options-panel__tabs {
+  display: inline-flex;
+  margin-bottom: 0.75rem;
+  padding: 0.22rem;
+  border: 2px solid #587a75;
+  border-radius: 0.55rem;
+  background: #243b4e;
+  gap: 0.28rem;
+}
+
+.game-menu .options-panel__tabs > button {
+  min-width: 6.5rem;
+  padding: 0.52rem 1rem;
+  border: 0;
+  color: #c4d3dc;
+  background: transparent;
+  box-shadow: none;
+}
+
+.game-menu .options-panel__tabs > button:hover,
+.game-menu .options-panel__tabs > button.is-active {
+  color: #fff1c9;
+  background: #625339;
+  box-shadow: inset 0 0 0 2px #dfb45b;
+}
+
+.options-panel__load-intro {
+  max-width: 900px;
+}
+
+.options-load-backup {
+  display: grid;
+  max-width: 900px;
+  margin: 0 0 0.9rem;
+  padding: 0.9rem;
+  border: 3px solid #dfb45b;
+  border-radius: 0.6rem;
+  color: #f7e9c6;
+  background: linear-gradient(145deg, #3f4d4e, #283c48);
+  box-shadow: 0 0.25rem 0 rgb(10 22 34 / 72%);
+  gap: 0.75rem;
+}
+
+.options-load-backup header {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.options-load-backup header > span {
+  color: #f2c568;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.options-load-backup h3,
+.options-load-backup p {
+  margin: 0;
+}
+
+.options-load-backup header > p {
+  color: #e1e8e7;
+}
+
+.options-load-backup header > strong {
+  color: #f1b99e;
+  font-size: 0.82rem;
+}
+
+.options-load-backup__slots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.game-menu .options-load-backup__slots > button {
+  display: grid;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  align-items: center;
+  border-color: #587a75;
+  text-align: left;
+  background: #30495c;
+  gap: 0.55rem;
+}
+
+.game-menu .options-load-backup__slots > button > span:first-child {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 2px solid #dfb45b;
+  border-radius: 0.35rem;
+  color: #f2c568;
+  background: #625339;
+  font-weight: 900;
+}
+
+.options-load-backup__slots > button > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+}
+
+.options-load-backup__slots small {
+  overflow: hidden;
+  color: #c4d3dc;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.options-load-backup__slots em {
+  color: #f2c568;
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.game-menu .options-load-backup__slots > button:disabled {
+  border-color: #495b62;
+  color: #83939a;
+  background: #263942;
+  box-shadow: none;
+  opacity: 0.72;
+}
+
+.options-load-backup__status {
+  padding: 0.55rem 0.65rem;
+  border-left: 4px solid #dfb45b;
+  color: #fff1c9;
+  background: rgb(20 33 47 / 65%);
+}
+
+.options-load-backup footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.game-menu .options-load-backup footer .is-danger {
+  background: #9f4d40;
+}
+
+@media (max-width: 600px) {
+  .options-panel__tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .game-menu .options-panel__tabs > button {
+    min-width: 0;
+  }
+
+  .options-load-backup__slots {
+    grid-template-columns: 1fr;
+  }
+
+  .game-menu .options-load-backup__slots > button {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+
+  .options-load-backup__slots em {
+    grid-column: 2;
+  }
+
+  .options-load-backup footer {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }

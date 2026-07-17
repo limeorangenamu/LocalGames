@@ -1,20 +1,38 @@
 import Phaser from 'phaser'
 import {
+  PLAYER_ATTACK_STAMINA_COST,
   PLAYER_BASE_ACTION_INTERVAL_MS,
+  PLAYER_DODGE_DISTANCE,
+  PLAYER_DODGE_DURATION_MS,
+  PLAYER_DODGE_INVULNERABILITY_MS,
+  PLAYER_DODGE_STAMINA_COST,
+  PLAYER_GATHERING_STAMINA_COST,
   PLAYER_HURT_INVULNERABILITY_MS,
   PLAYER_MAX_HP,
+  PLAYER_MAX_STAMINA,
   PLAYER_MOVE_SPEED,
   PLAYER_SPRINT_SPEED_MULTIPLIER,
+  PLAYER_SPRINT_STAMINA_COST_PER_SECOND,
+  PLAYER_STAMINA_RECOVERY_DELAY_MS,
+  PLAYER_STAMINA_RECOVERY_PER_SECOND,
   PLAYER_TEXTURE_KEY,
   SHIELD_REGEN_DELAY_MS,
   SHIELD_REGEN_PER_SECOND,
 } from '../config/gameConstants'
 import { BARE_HANDS_TOOL } from '../data/equipment'
 import type {
+  PlayerCombatStyle,
   PrimaryActionKind,
   ToolDefinition,
 } from '../types/equipment'
+import type { InventoryItemKey } from '../types/item'
 import type { WorldPoint } from '../types/map'
+import type {
+  PlayerActionResourceProfile,
+  PlayerActionResourceSnapshot,
+  PlayerMovementState,
+} from '../types/player'
+import { calculateMitigatedPlayerDamage } from '../utils/playerCombat'
 
 type MovementKeys = Readonly<{
   up: Phaser.Input.Keyboard.Key
@@ -22,9 +40,8 @@ type MovementKeys = Readonly<{
   left: Phaser.Input.Keyboard.Key
   right: Phaser.Input.Keyboard.Key
   sprint: Phaser.Input.Keyboard.Key
+  dodge: Phaser.Input.Keyboard.Key
 }>
-
-export type PlayerMovementState = 'idle' | 'move'
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   private readonly cursorKeys?: Phaser.Types.Input.Keyboard.CursorKeys
@@ -37,10 +54,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private equippedTool: ToolDefinition = BARE_HANDS_TOOL
   private shieldRegenerationStartsAt = 0
   private lastShieldUpdateAt = 0
+  private staminaRecoveryStartsAt = 0
+  private dodgeLockedUntil = 0
+  private armorRating = 0
+  private actionResourceProfile: PlayerActionResourceProfile = {
+    maxStamina: PLAYER_MAX_STAMINA,
+    staminaCostMultiplier: 1,
+    staminaRecoveryMultiplier: 1,
+    dodgeDistanceMultiplier: 1,
+  }
 
   movementState: PlayerMovementState = 'idle'
   readonly maxHp = PLAYER_MAX_HP
   currentHp = PLAYER_MAX_HP
+  maxStamina = PLAYER_MAX_STAMINA
+  currentStamina = PLAYER_MAX_STAMINA
   maxShield = 0
   currentShield = 0
 
@@ -64,12 +92,19 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         left: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
         right: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
         sprint: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT),
+        dodge: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
       }
     }
   }
 
-  updateMovement() {
-    if (this.scene.time.now < this.movementLockedUntil) {
+  updateMovement(time: number, delta: number) {
+    this.updateStamina(time, delta)
+
+    if (time < this.movementLockedUntil) {
+      if (time < this.dodgeLockedUntil) {
+        this.movementState = 'dodge'
+      }
+
       return
     }
 
@@ -81,12 +116,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     let velocityX = Number(moveRight) - Number(moveLeft)
     let velocityY = Number(moveDown) - Number(moveUp)
 
-    if (velocityX === 0 && velocityY === 0) {
-      this.setVelocity(0, 0)
-      this.movementState = 'idle'
-      return
-    }
-
     // 대각선 이동 속도가 직선 이동보다 빨라지지 않도록 정규화한다.
     if (velocityX !== 0 && velocityY !== 0) {
       const diagonalScale = Math.SQRT1_2
@@ -94,20 +123,78 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       velocityY *= diagonalScale
     }
 
+    if (
+      this.movementKeys?.dodge &&
+      Phaser.Input.Keyboard.JustDown(this.movementKeys.dodge)
+    ) {
+      const dodgeX = velocityX || this.facingX
+      const dodgeY = velocityY || this.facingY
+
+      if (this.trySpendStamina(PLAYER_DODGE_STAMINA_COST, time)) {
+        const dodgeLength = Math.hypot(dodgeX, dodgeY) || 1
+        const dodgeSpeed =
+          (PLAYER_DODGE_DISTANCE *
+            this.actionResourceProfile.dodgeDistanceMultiplier) /
+          (PLAYER_DODGE_DURATION_MS / 1_000)
+
+        this.setVelocity(
+          (dodgeX / dodgeLength) * dodgeSpeed,
+          (dodgeY / dodgeLength) * dodgeSpeed,
+        )
+        this.facingX = dodgeX / dodgeLength
+        this.facingY = dodgeY / dodgeLength
+        this.movementLockedUntil = time + PLAYER_DODGE_DURATION_MS
+        this.dodgeLockedUntil = time + PLAYER_DODGE_DURATION_MS
+        this.invulnerableUntil = Math.max(
+          this.invulnerableUntil,
+          time + PLAYER_DODGE_INVULNERABILITY_MS,
+        )
+        this.movementState = 'dodge'
+        this.scene.tweens.add({
+          targets: this,
+          alpha: 0.55,
+          duration: PLAYER_DODGE_DURATION_MS / 2,
+          yoyo: true,
+        })
+        return
+      }
+    }
+
+    if (velocityX === 0 && velocityY === 0) {
+      this.setVelocity(0, 0)
+      this.movementState = 'idle'
+      return
+    }
+
+    const sprintRequested = this.movementKeys?.sprint.isDown === true
+    const sprintCost =
+      PLAYER_SPRINT_STAMINA_COST_PER_SECOND *
+      Math.min(Math.max(delta, 0), 250) /
+      1_000
+    const isSprinting =
+      sprintRequested && this.trySpendStamina(sprintCost, time)
+
     const movementSpeed =
       PLAYER_MOVE_SPEED *
-      (this.movementKeys?.sprint.isDown === true
-        ? PLAYER_SPRINT_SPEED_MULTIPLIER
-        : 1)
+      (isSprinting ? PLAYER_SPRINT_SPEED_MULTIPLIER : 1)
 
     this.setVelocity(velocityX * movementSpeed, velocityY * movementSpeed)
     this.facingX = velocityX
     this.facingY = velocityY
-    this.movementState = 'move'
+    this.movementState = isSprinting ? 'sprint' : 'move'
   }
 
   tryPrimaryAction(time: number, actionKind: PrimaryActionKind) {
     if (time < this.nextPrimaryActionAt) {
+      return false
+    }
+
+    const staminaCost =
+      actionKind === 'gathering'
+        ? PLAYER_GATHERING_STAMINA_COST
+        : PLAYER_ATTACK_STAMINA_COST
+
+    if (!this.trySpendStamina(staminaCost, time)) {
       return false
     }
 
@@ -134,6 +221,35 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.equippedTool = tool
   }
 
+  configureActionResources(
+    profile: PlayerActionResourceProfile,
+    stamina = this.currentStamina,
+  ) {
+    this.actionResourceProfile = profile
+    this.maxStamina = profile.maxStamina
+    this.currentStamina = Phaser.Math.Clamp(stamina, 0, this.maxStamina)
+
+    if (this.currentStamina >= this.maxStamina) {
+      this.staminaRecoveryStartsAt = 0
+    }
+  }
+
+  getActionResourceSnapshot(time: number): PlayerActionResourceSnapshot {
+    return {
+      stamina: this.currentStamina,
+      maxStamina: this.maxStamina,
+      recoveryDelayed:
+        this.currentStamina < this.maxStamina &&
+        time < this.staminaRecoveryStartsAt,
+      movementState: this.movementState,
+    }
+  }
+
+  restoreStaminaFully() {
+    this.currentStamina = this.maxStamina
+    this.staminaRecoveryStartsAt = 0
+  }
+
   getResourceDamage(baseDamage: number) {
     return Math.max(
       1,
@@ -144,8 +260,31 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   getCombatDamage(baseDamage: number) {
     return Math.max(
       1,
-      Math.round(baseDamage * this.equippedTool.combatDamageMultiplier),
+      Math.round(
+        (this.equippedTool.weaponDamage ?? baseDamage) *
+          this.equippedTool.combatDamageMultiplier,
+      ),
     )
+  }
+
+  getCombatStyle(): PlayerCombatStyle {
+    return this.equippedTool.combatStyle ?? 'melee'
+  }
+
+  getCombatRange(fallbackRange: number) {
+    return this.equippedTool.attackRange ?? fallbackRange
+  }
+
+  getAmmunitionItemId(): InventoryItemKey | null {
+    return this.equippedTool.ammunitionItemId ?? null
+  }
+
+  getProjectileSpeed() {
+    return this.equippedTool.projectileSpeed ?? 0
+  }
+
+  configureArmorRating(armorRating: number) {
+    this.armorRating = Math.max(0, armorRating)
   }
 
   takeDamage(
@@ -158,7 +297,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return false
     }
 
-    let remainingDamage = damage
+    let remainingDamage = bypassShield
+      ? damage
+      : calculateMitigatedPlayerDamage(damage, this.armorRating)
 
     if (!bypassShield && this.currentShield > 0) {
       const absorbedDamage = Math.min(this.currentShield, remainingDamage)
@@ -243,5 +384,43 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   getFacingDirection() {
     return { x: this.facingX, y: this.facingY }
+  }
+
+  private updateStamina(time: number, delta: number) {
+    if (
+      this.currentStamina >= this.maxStamina ||
+      time < this.staminaRecoveryStartsAt
+    ) {
+      return
+    }
+
+    const elapsedSeconds = Math.min(Math.max(delta, 0), 250) / 1_000
+    this.currentStamina = Math.min(
+      this.maxStamina,
+      this.currentStamina +
+        PLAYER_STAMINA_RECOVERY_PER_SECOND *
+          this.actionResourceProfile.staminaRecoveryMultiplier *
+          elapsedSeconds,
+    )
+  }
+
+  private trySpendStamina(baseCost: number, time: number) {
+    const cost = Math.max(
+      0,
+      baseCost * this.actionResourceProfile.staminaCostMultiplier,
+    )
+
+    if (cost <= 0) {
+      return true
+    }
+
+    if (this.currentStamina + Number.EPSILON < cost) {
+      return false
+    }
+
+    this.currentStamina = Math.max(0, this.currentStamina - cost)
+    this.staminaRecoveryStartsAt =
+      time + PLAYER_STAMINA_RECOVERY_DELAY_MS
+    return true
   }
 }

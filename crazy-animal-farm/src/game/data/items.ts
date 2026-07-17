@@ -91,7 +91,30 @@ export const ITEM_DEFINITIONS: Readonly<
     name: '수상한 포획 캡슐',
     category: 'captureTool',
     maxStack: 99,
-    captureBonus: 0.12,
+  },
+  reinforcedCaptureCapsule: {
+    id: 'reinforcedCaptureCapsule',
+    name: '강화 포획 캡슐',
+    category: 'captureTool',
+    maxStack: 99,
+  },
+  precisionCaptureCapsule: {
+    id: 'precisionCaptureCapsule',
+    name: '정밀 포획 캡슐',
+    category: 'captureTool',
+    maxStack: 99,
+  },
+  captureScannerModule: {
+    id: 'captureScannerModule',
+    name: '상태 분석 모듈',
+    category: 'captureModule',
+    maxStack: 1,
+  },
+  captureStabilizerModule: {
+    id: 'captureStabilizerModule',
+    name: '후방 안정화 모듈',
+    category: 'captureModule',
+    maxStack: 1,
   },
   rabbitWindHarness: {
     id: 'rabbitWindHarness',
@@ -111,6 +134,12 @@ export const ITEM_DEFINITIONS: Readonly<
     category: 'companionEquipment',
     maxStack: 99,
   },
+  woodenArrow: {
+    id: 'woodenArrow',
+    name: '나무 화살',
+    category: 'ammunition',
+    maxStack: 999,
+  },
 }
 
 export const INITIAL_INVENTORY: Record<InventoryItemKey, number> = {
@@ -127,9 +156,14 @@ export const INITIAL_INVENTORY: Record<InventoryItemKey, number> = {
   boarMeat: 0,
   roastedBoarMeat: 0,
   captureCapsule: 5,
+  reinforcedCaptureCapsule: 0,
+  precisionCaptureCapsule: 0,
+  captureScannerModule: 0,
+  captureStabilizerModule: 0,
   rabbitWindHarness: 0,
   sheepGuardianBell: 0,
   boarStoneArmor: 0,
+  woodenArrow: 0,
 }
 
 export function createEmptyItemStorage(): Record<InventoryItemKey, number> {
@@ -147,8 +181,13 @@ export function createEmptyItemStorage(): Record<InventoryItemKey, number> {
     boarMeat: 0,
     roastedBoarMeat: 0,
     captureCapsule: 0,
+    reinforcedCaptureCapsule: 0,
+    precisionCaptureCapsule: 0,
+    captureScannerModule: 0,
+    captureStabilizerModule: 0,
     rabbitWindHarness: 0,
     sheepGuardianBell: 0,
     boarStoneArmor: 0,
+    woodenArrow: 0,
   }
 }

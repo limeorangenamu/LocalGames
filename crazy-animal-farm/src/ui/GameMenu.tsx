@@ -1,4 +1,4 @@
-import { useState, type DragEvent } from 'react'
+import { useEffect, useState, type DragEvent } from 'react'
 import {
   ANIMAL_MAX_TRUST,
   ANIMAL_PARTY_SLOT_COUNT,
@@ -12,6 +12,10 @@ import {
   CRAFTING_RECIPES,
   CRAFTING_STATIONS,
 } from '../game/data/crafting'
+import {
+  CAPTURE_SUPPORT_MODULES,
+  getCaptureSupportModuleByItemId,
+} from '../game/data/capture'
 import { TOOL_DEFINITIONS } from '../game/data/equipment'
 import { ITEM_DEFINITIONS } from '../game/data/items'
 import {
@@ -30,8 +34,13 @@ import type {
 } from '../game/types/equipment'
 import type { HotbarAssignment, HotbarSlot } from '../game/types/hotbar'
 import type { InventoryItemKey } from '../game/types/item'
-import type { GameSave, SaveSlotId } from '../game/types/save'
+import type {
+  GameSave,
+  ManualSaveSlotId,
+  SaveSlotId,
+} from '../game/types/save'
 import type { WorkSkill } from '../game/types/work'
+import { getPlayerArmorRating } from '../game/utils/playerCombat'
 import {
   useGameStore,
   type GameMenuTabId,
@@ -55,16 +64,12 @@ const MENU_TABS: readonly Readonly<{
 const EQUIPMENT_SLOTS: readonly Readonly<{
   id: EquipmentSlotId
   label: string
-  category: string
 }>[] = [
-  { id: 'head', label: '머리', category: '방어구' },
-  { id: 'earring', label: '귀걸이', category: '장신구' },
-  { id: 'ring', label: '반지', category: '장신구' },
-  { id: 'body', label: '몸통', category: '방어구' },
-  { id: 'cloak', label: '망토', category: '방어구' },
-  { id: 'legs', label: '다리', category: '방어구' },
-  { id: 'feet', label: '신발', category: '방어구' },
-  { id: 'shield', label: '쉴드', category: '방어구' },
+  { id: 'head', label: '투구' },
+  { id: 'body', label: '갑옷' },
+  { id: 'rightHand', label: '주무기' },
+  { id: 'cloak', label: '망토' },
+  { id: 'shield', label: '쉴드' },
 ]
 
 const WORK_SKILLS: readonly Readonly<{
@@ -79,7 +84,8 @@ const WORK_SKILLS: readonly Readonly<{
 
 const CONTROL_GROUPS = [
   ['이동', 'WASD 또는 방향키'],
-  ['달리기', '이동 중 Shift를 누르고 있으면 더 빠르게 달리기'],
+  ['달리기', '이동 중 Shift · 스태미나를 계속 소모'],
+  ['회피', 'Space · 이동 방향 또는 바라보는 방향으로 회피'],
   ['지도', 'M으로 열기 · 월드맵, 초원맵, 현재맵 단계 전환'],
   ['공격·채집', '마우스 왼쪽 버튼을 누르고 있기'],
   ['포획', 'Q로 포획 모드 · 왼쪽 클릭으로 캡슐 투척'],
@@ -105,6 +111,18 @@ type EquipmentDragPayload = Readonly<{
   toolId: ToolDefinitionId
   source: 'inventory' | 'equipment'
   slotId?: EquipmentSlotId
+}>
+
+type PendingLoadRequest = Readonly<{
+  slotId: SaveSlotId
+  slotLabel: string
+  hasSave: boolean
+}>
+
+type PendingBackupLoad = Readonly<{
+  loadRequest: PendingLoadRequest
+  requestId: number
+  backupSlotLabel: string
 }>
 
 type InventoryEntry =
@@ -157,7 +175,10 @@ export function GameMenu() {
           </button>
         </header>
 
-        <div className="game-menu__content">
+        <div
+          key={activeTab}
+          className={`game-menu__content game-menu__content--${activeTab}`}
+        >
           {activeTab === 'inventory' && <InventoryPanel />}
           {activeTab === 'technology' && <TechnologyPanel />}
           {activeTab === 'animals' && <AnimalPanel />}
@@ -176,9 +197,7 @@ function MenuHotbar() {
   const clearHotbarSlot = useGameStore((state) => state.clearHotbarSlot)
   const selectHotbarSlot = useGameStore((state) => state.selectHotbarSlot)
   const requestSave = useGameStore((state) => state.requestManualSave)
-  const [message, setMessage] = useState(
-    '인벤토리의 아이템이나 장비를 퀵바로 드래그하세요.',
-  )
+  const [message, setMessage] = useState('')
 
   const handleDrop = (
     event: DragEvent<HTMLElement>,
@@ -222,7 +241,7 @@ function MenuHotbar() {
         onClearSlot={handleClear}
         onSelectSlot={handleSelect}
       />
-      <span>{message}</span>
+      {message && <span>{message}</span>}
     </div>
   )
 }
@@ -366,8 +385,23 @@ function InventoryPanel() {
   const inventory = useGameStore((state) => state.inventory)
   const ownedToolIds = useGameStore((state) => state.ownedToolIds)
   const equippedItems = useGameStore((state) => state.equippedItems)
+  const equipmentDurability = useGameStore(
+    (state) => state.equipmentDurability,
+  )
   const equipToolInSlot = useGameStore((state) => state.equipToolInSlot)
   const unequipItem = useGameStore((state) => state.unequipItem)
+  const repairEquipment = useGameStore((state) => state.repairEquipment)
+  const playerCapturePower = useGameStore(
+    (state) => state.playerCapturePower,
+  )
+  const equippedCaptureSupportModuleId = useGameStore(
+    (state) => state.equippedCaptureSupportModuleId,
+  )
+  const playerStamina = useGameStore((state) => state.playerStamina)
+  const playerMaxStamina = useGameStore((state) => state.playerMaxStamina)
+  const equipCaptureSupportModule = useGameStore(
+    (state) => state.equipCaptureSupportModule,
+  )
   const requestSave = useGameStore((state) => state.requestManualSave)
   const eatFood = useGameStore((state) => state.eatFood)
   const playerLevel = useGameStore((state) => state.playerLevel)
@@ -375,7 +409,6 @@ function InventoryPanel() {
   const playerExperienceToNextLevel = useGameStore(
     (state) => state.playerExperienceToNextLevel,
   )
-  const hungerMessage = useGameStore((state) => state.hungerMessage)
   const currentMapName = useGameStore((state) => state.currentMapName)
   const [dropMessage, setDropMessage] = useState('')
   const [inventoryMessage, setInventoryMessage] = useState('')
@@ -383,6 +416,10 @@ function InventoryPanel() {
   const equippedMenuItemIds = EQUIPMENT_SLOTS
     .map((slot) => equippedItems[slot.id])
     .filter((toolId): toolId is ToolDefinitionId => toolId !== undefined)
+  const armorRating = getPlayerArmorRating(
+    equippedItems,
+    equipmentDurability,
+  )
   const entries: InventoryEntry[] = [
     ...Object.values(ITEM_DEFINITIONS)
       .filter((definition) => inventory[definition.id] > 0)
@@ -407,8 +444,18 @@ function InventoryPanel() {
   if (sortMode === 'name') {
     entries.sort((left, right) => left.name.localeCompare(right.name, 'ko'))
   }
+  const inventoryCapacity = 64
+  const inventoryColumnCount = 8
+  const renderedSlotCount = Math.min(
+    inventoryCapacity,
+    Math.max(
+      40,
+      Math.ceil((entries.length + inventoryColumnCount) / inventoryColumnCount) *
+        inventoryColumnCount,
+    ),
+  )
   const slots = Array.from(
-    { length: 64 },
+    { length: renderedSlotCount },
     (_, index): InventoryEntry | null => entries[index] ?? null,
   )
 
@@ -427,7 +474,12 @@ function InventoryPanel() {
     if (equipToolInSlot(payload.toolId, slotId)) {
       setDropMessage(`${TOOL_DEFINITIONS[payload.toolId].name}을(를) 장착했습니다.`)
       requestSave()
+      return
     }
+
+    setDropMessage(
+      `${TOOL_DEFINITIONS[payload.toolId].name}의 내구도가 없어 먼저 수리해야 합니다.`,
+    )
   }
 
   const handleInventoryDrop = (event: DragEvent<HTMLDivElement>) => {
@@ -451,16 +503,72 @@ function InventoryPanel() {
     }
   }
 
+  const handleCaptureModule = (itemId: InventoryItemKey) => {
+    const moduleDefinition = getCaptureSupportModuleByItemId(itemId)
+
+    if (!moduleDefinition) {
+      return
+    }
+
+    const nextModuleId =
+      equippedCaptureSupportModuleId === moduleDefinition.id
+        ? null
+        : moduleDefinition.id
+
+    if (equipCaptureSupportModule(nextModuleId)) {
+      setInventoryMessage(
+        nextModuleId
+          ? `${moduleDefinition.name}을(를) 장착했습니다.`
+          : `${moduleDefinition.name}을(를) 해제했습니다.`,
+      )
+      requestSave()
+    }
+  }
+
+  const handleRepairEquipment = (toolId: ToolDefinitionId) => {
+    const definition = TOOL_DEFINITIONS[toolId]
+    const maxDurability = definition.maxDurability
+    const currentDurability =
+      equipmentDurability[toolId] ?? maxDurability
+
+    if (
+      maxDurability === undefined ||
+      currentDurability === undefined ||
+      currentDurability >= maxDurability
+    ) {
+      setInventoryMessage('현재 장비는 수리할 필요가 없습니다.')
+      return
+    }
+
+    if (repairEquipment(toolId)) {
+      setInventoryMessage(`${definition.name} 수리를 완료했습니다.`)
+      requestSave()
+      return
+    }
+
+    const repairCost = (definition.repairIngredients ?? [])
+      .map(
+        ({ item, amount }) =>
+          `${ITEM_DEFINITIONS[item].name} ${amount}`,
+      )
+      .join(', ')
+
+    setInventoryMessage(
+      repairCost
+        ? `수리 재료가 부족합니다: ${repairCost}`
+        : '수리할 필요가 없는 장비입니다.',
+    )
+  }
+
   return (
     <div className="inventory-panel">
-      <div>
-        <div className="menu-section-heading">
+      <section className="inventory-items-panel">
+        <header className="inventory-panel__heading">
           <div>
-            <span className="menu-section-heading__eyebrow">64 SLOTS</span>
             <h2>보유 아이템</h2>
+            <span>{entries.length} / {inventoryCapacity}</span>
           </div>
           <div className="inventory-heading-actions">
-            <span>장비를 오른쪽 슬롯으로 드래그하세요.</span>
             <button
               type="button"
               className={sortMode === 'name' ? 'is-active' : ''}
@@ -471,14 +579,14 @@ function InventoryPanel() {
                 )
               }
             >
-              이름순 정렬
+              {sortMode === 'name' ? '기본순' : '이름순'}
             </button>
           </div>
-        </div>
+        </header>
         <div className="inventory-grid-scroll">
           <div
             className="inventory-grid"
-            aria-label="8행 8열 인벤토리"
+            aria-label={`보유 아이템 ${entries.length}개, 최대 ${inventoryCapacity}칸`}
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleInventoryDrop}
           >
@@ -517,6 +625,30 @@ function InventoryPanel() {
                     {entry.amount > 1 && (
                       <strong className="inventory-slot__amount">{entry.amount}</strong>
                     )}
+                    {entry.kind === 'tool' &&
+                      TOOL_DEFINITIONS[entry.id].maxDurability !==
+                        undefined && (
+                        <span className="inventory-slot__durability">
+                          {equipmentDurability[entry.id] ??
+                            TOOL_DEFINITIONS[entry.id].maxDurability} /{' '}
+                          {TOOL_DEFINITIONS[entry.id].maxDurability}
+                        </span>
+                      )}
+                    {entry.kind === 'tool' &&
+                      TOOL_DEFINITIONS[entry.id].maxDurability !==
+                        undefined &&
+                      (equipmentDurability[entry.id] ??
+                        TOOL_DEFINITIONS[entry.id].maxDurability ??
+                        0) <
+                        (TOOL_DEFINITIONS[entry.id].maxDurability ?? 0) && (
+                        <button
+                          type="button"
+                          className="inventory-slot__action"
+                          onClick={() => handleRepairEquipment(entry.id)}
+                        >
+                          수리
+                        </button>
+                      )}
                     {entry.kind === 'item' &&
                       (ITEM_DEFINITIONS[entry.id].hungerRestore ?? 0) > 0 && (
                         <button
@@ -527,28 +659,34 @@ function InventoryPanel() {
                           먹기
                         </button>
                       )}
+                    {entry.kind === 'item' &&
+                      ITEM_DEFINITIONS[entry.id].category ===
+                        'captureModule' && (
+                        <button
+                          type="button"
+                          className="inventory-slot__action"
+                          onClick={() => handleCaptureModule(entry.id)}
+                        >
+                          {getCaptureSupportModuleByItemId(entry.id)?.id ===
+                          equippedCaptureSupportModuleId
+                            ? '해제'
+                            : '장착'}
+                        </button>
+                      )}
                   </>
                 )}
               </div>
             ))}
           </div>
         </div>
-        <section className="inventory-crafting-notice">
-          <span className="menu-section-heading__eyebrow">CRAFTING MOVED</span>
-          <strong>제작은 작업대에서 진행합니다.</strong>
-          <small>
-            제작법 탭에서 레시피를 해금한 뒤 해당 작업대를 이용하세요.
-          </small>
-        </section>
         {inventoryMessage && (
-          <p className="food-crafting__message">{inventoryMessage}</p>
+          <p className="inventory-panel__feedback">{inventoryMessage}</p>
         )}
-      </div>
+      </section>
 
       <aside className="avatar-equipment" aria-label="아바타와 장비">
         <header className="equipment-profile">
           <div>
-            <span className="menu-section-heading__eyebrow">PLAYER PROFILE</span>
             <strong>플레이어</strong>
             <small>{currentMapName}</small>
           </div>
@@ -570,48 +708,93 @@ function InventoryPanel() {
             }}
           />
         </div>
+        <div className="equipment-profile__stats">
+          <div>
+            <span>스태미나</span>
+            <strong>{Math.ceil(playerStamina)} / {playerMaxStamina}</strong>
+          </div>
+          <div>
+            <span>포획력</span>
+            <strong>+{Math.round(playerCapturePower * 100)}%</strong>
+          </div>
+          <div>
+            <span>방어력</span>
+            <strong>{armorRating}</strong>
+          </div>
+          <div>
+            <span>포획 모듈</span>
+            <strong>
+              {equippedCaptureSupportModuleId
+                ? CAPTURE_SUPPORT_MODULES[equippedCaptureSupportModuleId].name
+                : '없음'}
+            </strong>
+          </div>
+        </div>
         <div className="avatar-equipment__layout">
           <div className="avatar-equipment__avatar" aria-label="플레이어 아바타">
             <span>●</span>
             <span className="avatar-equipment__body">◆</span>
           </div>
-          {EQUIPMENT_SLOTS.map((slot) => {
-            const toolId = equippedItems[slot.id]
+          <div className="equipment-slot-list">
+            {EQUIPMENT_SLOTS.map((slot) => {
+              const toolId = equippedItems[slot.id]
+              const definition = toolId ? TOOL_DEFINITIONS[toolId] : null
+              const durability = toolId
+                ? equipmentDurability[toolId] ??
+                  TOOL_DEFINITIONS[toolId].maxDurability
+                : undefined
 
-            return (
-              <div
-                key={slot.id}
-                className={`equipment-slot equipment-slot--${slot.id}`}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => handleEquipmentDrop(event, slot.id)}
-              >
-                <span>{slot.label}</span>
-                <small>{slot.category}</small>
-                {toolId ? (
-                  <button
-                    type="button"
-                    draggable
-                    title="인벤토리로 드래그하여 해제"
-                    onDragStart={(event) =>
-                      writeEquipmentPayload(event, {
-                        toolId,
-                        source: 'equipment',
-                        slotId: slot.id,
-                      })
-                    }
-                  >
-                    {getEquipmentIcon(toolId)} {TOOL_DEFINITIONS[toolId].name}
-                  </button>
-                ) : (
-                  <em>비어 있음</em>
-                )}
-              </div>
-            )
-          })}
+              return (
+                <div
+                  key={slot.id}
+                  className={`equipment-slot equipment-slot--${slot.id}`}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => handleEquipmentDrop(event, slot.id)}
+                >
+                  <span>{slot.label}</span>
+                  {toolId ? (
+                    <>
+                      <button
+                        type="button"
+                        draggable
+                        title="인벤토리로 드래그하여 해제"
+                        onDragStart={(event) =>
+                          writeEquipmentPayload(event, {
+                            toolId,
+                            source: 'equipment',
+                            slotId: slot.id,
+                          })
+                        }
+                      >
+                        {getEquipmentIcon(toolId)} {definition?.name}
+                      </button>
+                      {definition?.maxDurability !== undefined && (
+                        <small className="equipment-slot__durability">
+                          내구도 {durability ?? 0} / {definition.maxDurability}
+                        </small>
+                      )}
+                      {definition?.maxDurability !== undefined &&
+                        (durability ?? 0) < definition.maxDurability && (
+                          <button
+                            type="button"
+                            className="equipment-slot__repair"
+                            onClick={() => handleRepairEquipment(toolId)}
+                          >
+                            수리
+                          </button>
+                        )}
+                    </>
+                  ) : (
+                    <em>비어 있음</em>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
-        <p className="avatar-equipment__message">
-          {dropMessage || hungerMessage || '장착한 장비는 인벤토리로 다시 드래그해 해제할 수 있습니다.'}
-        </p>
+        {dropMessage && (
+          <p className="avatar-equipment__message">{dropMessage}</p>
+        )}
       </aside>
     </div>
   )
@@ -1234,11 +1417,51 @@ function OptionsPanel() {
   const requestManualSave = useGameStore((state) => state.requestManualSave)
   const lastSavedAt = useGameStore((state) => state.lastSavedAt)
   const saveMessage = useGameStore((state) => state.saveMessage)
+  const completedManualSaveRequestId = useGameStore(
+    (state) => state.completedManualSaveRequestId,
+  )
+  const lastManualSaveSucceeded = useGameStore(
+    (state) => state.lastManualSaveSucceeded,
+  )
+  const [activeOptionsTab, setActiveOptionsTab] = useState<'save' | 'load'>(
+    'save',
+  )
   const [isSlotSelectOpen, setSlotSelectOpen] = useState(false)
   const [slotRevision, setSlotRevision] = useState(0)
   const [slotMessage, setSlotMessage] = useState('')
+  const [pendingLoadRequest, setPendingLoadRequest] =
+    useState<PendingLoadRequest | null>(null)
+  const [pendingBackupLoad, setPendingBackupLoad] =
+    useState<PendingBackupLoad | null>(null)
   const slotSummaries = saveSlotService.getSlotSummaries()
   const autoSave = slotSummaries.find((slot) => slot.id === 'auto')
+
+  useEffect(() => {
+    if (
+      !pendingBackupLoad ||
+      completedManualSaveRequestId !== pendingBackupLoad.requestId ||
+      lastManualSaveSucceeded !== true
+    ) {
+      return
+    }
+
+    if (
+      !saveSlotService.requestLoadOnRestart(
+        pendingBackupLoad.loadRequest.slotId,
+      )
+    ) {
+      window.alert(
+        '불러올 슬롯을 준비하지 못했습니다. 취소 후 다시 시도하세요.',
+      )
+      return
+    }
+
+    window.location.reload()
+  }, [
+    completedManualSaveRequestId,
+    lastManualSaveSucceeded,
+    pendingBackupLoad,
+  ])
   const handleDeleteSlot = (slotId: SaveSlotId, slotLabel: string) => {
     if (
       !window.confirm(
@@ -1256,6 +1479,69 @@ function OptionsPanel() {
 
     setSlotMessage(`${slotLabel}을 삭제하지 못했습니다.`)
   }
+  const handleLoadSlot = (
+    slotId: SaveSlotId,
+    slotLabel: string,
+    hasSave: boolean,
+  ) => {
+    if (pendingBackupLoad) {
+      return
+    }
+
+    setPendingLoadRequest({ slotId, slotLabel, hasSave })
+    setSlotMessage('')
+  }
+  const handleSaveBeforeLoad = (backupSlotId: ManualSaveSlotId) => {
+    if (!pendingLoadRequest || pendingBackupLoad) {
+      return
+    }
+
+    const backupDefinition = SAVE_SLOT_DEFINITIONS.find(
+      (slot) => slot.id === backupSlotId,
+    )
+    const backupSummary = slotSummaries.find(
+      (slot) => slot.id === backupSlotId,
+    )
+    const backupSlotLabel =
+      backupDefinition?.label ?? `저장 슬롯 ${backupSlotId.slice(-1)}`
+
+    if (
+      backupSummary?.save &&
+      !window.confirm(
+        `${backupSlotLabel}의 기존 기록을 현재 진행으로 덮어쓸까요?`,
+      )
+    ) {
+      return
+    }
+
+    const requestId = requestManualSave(backupSlotId)
+
+    setPendingBackupLoad({
+      loadRequest: pendingLoadRequest,
+      requestId,
+      backupSlotLabel,
+    })
+  }
+  const handleLoadWithoutSaving = () => {
+    if (!pendingLoadRequest || pendingBackupLoad) {
+      return
+    }
+
+    if (
+      !window.confirm(
+        '현재 진행을 수동 슬롯에 남기지 않고 전환할까요? 자동저장은 새 플레이로 덮어써질 수 있으며 기존 진행을 복구하지 못할 수 있습니다.',
+      )
+    ) {
+      return
+    }
+
+    if (!saveSlotService.requestLoadOnRestart(pendingLoadRequest.slotId)) {
+      setSlotMessage('불러올 슬롯을 준비하지 못했습니다.')
+      return
+    }
+
+    window.location.reload()
+  }
 
   return (
     <div className="options-panel">
@@ -1265,6 +1551,29 @@ function OptionsPanel() {
           <h2>옵션</h2>
         </div>
       </div>
+      <div className="options-panel__tabs" role="tablist" aria-label="저장 및 불러오기">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeOptionsTab === 'save'}
+          className={activeOptionsTab === 'save' ? 'is-active' : ''}
+          onClick={() => setActiveOptionsTab('save')}
+        >
+          저장
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeOptionsTab === 'load'}
+          className={activeOptionsTab === 'load' ? 'is-active' : ''}
+          onClick={() => setActiveOptionsTab('load')}
+        >
+          불러오기
+        </button>
+      </div>
+
+      {activeOptionsTab === 'save' ? (
+        <>
       <section className="options-panel__save">
         <div>
           <h3>게임 저장</h3>
@@ -1367,6 +1676,179 @@ function OptionsPanel() {
             },
           )}
         </section>
+      )}
+        </>
+      ) : (
+        <>
+          <section className="options-panel__save options-panel__load-intro">
+            <div>
+              <h3>게임 불러오기</h3>
+              <p>
+                시작 화면과 같은 저장 슬롯 목록입니다. 기록을 불러오거나
+                빈 슬롯에서 새 게임을 시작할 수 있습니다.
+              </p>
+              <span>
+                불러오기 전에 현재 진행을 보관할 수동 슬롯을 선택할 수
+                있습니다.
+              </span>
+              {slotMessage && <span>{slotMessage}</span>}
+            </div>
+          </section>
+          {pendingLoadRequest && (
+            <section
+              className="options-load-backup"
+              aria-label="현재 진행 저장 여부 선택"
+            >
+              <header>
+                <span>BEFORE LOAD</span>
+                <h3>현재 진행을 먼저 보관할까요?</h3>
+                <p>
+                  {pendingLoadRequest.hasSave
+                    ? `${pendingLoadRequest.slotLabel} 기록을 불러오기 전에 현재 진행을 수동 슬롯에 저장하세요.`
+                    : `${pendingLoadRequest.slotLabel}에서 새 게임을 시작하기 전에 현재 진행을 수동 슬롯에 저장하세요.`}
+                </p>
+                <strong>
+                  자동저장은 새 플레이가 시작되면 덮어써질 수 있으므로
+                  장기 보관용으로 안전하지 않습니다.
+                </strong>
+              </header>
+              <div className="options-load-backup__slots">
+                {SAVE_SLOT_DEFINITIONS.filter(
+                  (definition) => !definition.isAuto,
+                ).map((definition) => {
+                  const isLoadTarget =
+                    definition.id === pendingLoadRequest.slotId
+                  const summary = slotSummaries.find(
+                    (slot) => slot.id === definition.id,
+                  )
+
+                  return (
+                    <button
+                      key={`backup-${definition.id}`}
+                      type="button"
+                      disabled={isLoadTarget || Boolean(pendingBackupLoad)}
+                      onClick={() =>
+                        handleSaveBeforeLoad(
+                          definition.id as ManualSaveSlotId,
+                        )
+                      }
+                    >
+                      <span>{definition.id.slice(-1)}</span>
+                      <span>
+                        <strong>{definition.label}</strong>
+                        <small>
+                          {isLoadTarget
+                            ? '불러올 대상 슬롯'
+                            : summary?.save
+                              ? `${getSaveSummaryText(summary.save)} · 덮어쓰기`
+                              : '빈 슬롯 · 현재 진행 저장'}
+                        </small>
+                      </span>
+                      <em>
+                        {isLoadTarget
+                          ? '선택 불가'
+                          : summary?.save
+                            ? '덮어쓰고 전환'
+                            : '저장 후 전환'}
+                      </em>
+                    </button>
+                  )
+                })}
+              </div>
+              {pendingBackupLoad && (
+                <p className="options-load-backup__status">
+                  {completedManualSaveRequestId ===
+                  pendingBackupLoad.requestId
+                    ? lastManualSaveSucceeded === false
+                      ? `${pendingBackupLoad.backupSlotLabel} 저장에 실패했습니다. 취소 후 다시 시도하세요.`
+                      : `${pendingBackupLoad.backupSlotLabel} 저장을 완료했습니다. 불러오기를 준비하고 있습니다.`
+                    : `${pendingBackupLoad.backupSlotLabel} 저장 완료를 기다리고 있습니다.`}
+                </p>
+              )}
+              <footer>
+                <button
+                  type="button"
+                  className="is-danger"
+                  disabled={Boolean(pendingBackupLoad)}
+                  onClick={handleLoadWithoutSaving}
+                >
+                  저장하지 않고 전환
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    Boolean(pendingBackupLoad) &&
+                    completedManualSaveRequestId !==
+                      pendingBackupLoad?.requestId
+                  }
+                  onClick={() => {
+                    setPendingLoadRequest(null)
+                    setPendingBackupLoad(null)
+                    setSlotMessage('')
+                  }}
+                >
+                  취소
+                </button>
+              </footer>
+            </section>
+          )}
+          <section className="options-save-slots" aria-label="불러올 저장 슬롯">
+            {SAVE_SLOT_DEFINITIONS.map((definition) => {
+              const summary = slotSummaries.find(
+                (slot) => slot.id === definition.id,
+              )
+              const save = summary?.save ?? null
+
+              return (
+                <article
+                  key={`load-${definition.id}-${slotRevision}`}
+                  className={`options-save-slot${
+                    definition.isAuto ? ' is-auto' : ''
+                  }${save ? ' has-save' : ' is-empty'}`}
+                >
+                  <span>
+                    {definition.isAuto ? 'AUTO' : definition.id.slice(-1)}
+                  </span>
+                  <div className="options-save-slot__info">
+                    <strong>{definition.label}</strong>
+                    <small>
+                      {save
+                        ? `${getSaveSummaryText(save)} · ${formatSaveDate(save.savedAt)}`
+                        : '저장된 모험이 없습니다.'}
+                    </small>
+                  </div>
+                  <div className="options-save-slot__actions">
+                    <button
+                      type="button"
+                      disabled={Boolean(pendingLoadRequest)}
+                      onClick={() =>
+                        handleLoadSlot(
+                          definition.id,
+                          definition.label,
+                          Boolean(save),
+                        )
+                      }
+                    >
+                      {save ? '불러오기' : '새 게임'}
+                    </button>
+                    {save && (
+                      <button
+                        type="button"
+                        className="is-delete"
+                        disabled={Boolean(pendingLoadRequest)}
+                        onClick={() =>
+                          handleDeleteSlot(definition.id, definition.label)
+                        }
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
+                </article>
+              )
+            })}
+          </section>
+        </>
       )}
     </div>
   )

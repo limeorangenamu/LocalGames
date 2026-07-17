@@ -4,9 +4,14 @@ import type {
 } from './animal'
 import type { PlacedBuilding } from './building'
 import type { InventoryItemKey } from './item'
-import type { EquippedItems, ToolDefinitionId } from './equipment'
+import type {
+  EquipmentDurability,
+  EquippedItems,
+  ToolDefinitionId,
+} from './equipment'
 import type { HotbarSlot } from './hotbar'
 import type { CraftingRecipeId } from './crafting'
+import type { CaptureSupportModuleId } from './capture'
 import type { MapId, WorldPoint } from './map'
 import type { ResourceSpawnState } from './resource'
 
@@ -26,13 +31,17 @@ export type PlayerSaveData = Readonly<{
   level?: number
   experience?: number
   experienceToNextLevel?: number
+  capturePower?: number
+  equippedCaptureSupportModuleId?: CaptureSupportModuleId | null
   shield?: number
   maxShield?: number
+  stamina?: number
   technologyPoints?: number
   unlockedRecipeIds?: readonly CraftingRecipeId[]
   ownedToolIds: readonly ToolDefinitionId[]
   equippedToolId: ToolDefinitionId
   equippedItems: EquippedItems
+  equipmentDurability?: EquipmentDurability
   hotbarSlots?: readonly HotbarSlot[]
   selectedHotbarIndex?: number
   activeAnimalPartyIds?: readonly string[]

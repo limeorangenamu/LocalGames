@@ -7,6 +7,7 @@ import {
   ANIMAL_MAX_POTENTIAL,
   ANIMAL_PARTY_SLOT_COUNT,
   ANIMAL_REVIVE_DURATION_MS,
+  PLAYER_MAX_CAPTURE_POWER,
   PLAYER_MAX_HUNGER,
 } from '../config/gameConstants'
 import { ANIMAL_ACTIVE_SKILLS } from '../data/animalSkills'
@@ -17,7 +18,16 @@ import {
 import { ANIMAL_PASSIVE_TRAITS } from '../data/animalTraits'
 import { BUILDING_DEFINITIONS } from '../data/buildings'
 import { CRAFTING_RECIPES } from '../data/crafting'
-import { isToolDefinitionId, TOOL_DEFINITIONS } from '../data/equipment'
+import {
+  getDefaultPlayerCapturePower,
+  isCaptureSupportModuleId,
+  normalizePlayerCapturePower,
+} from '../data/capture'
+import {
+  getDefaultEquipmentDurability,
+  isToolDefinitionId,
+  TOOL_DEFINITIONS,
+} from '../data/equipment'
 import { ITEM_DEFINITIONS } from '../data/items'
 import { getMapDefinition, isMapId } from '../data/maps'
 import type {
@@ -39,7 +49,11 @@ import type {
 } from '../types/save'
 import type { PlacedBuilding } from '../types/building'
 import type { InventoryItemKey } from '../types/item'
-import type { EquipmentSlotId } from '../types/equipment'
+import type {
+  EquippedItems,
+  EquipmentSlotId,
+  ToolDefinitionId,
+} from '../types/equipment'
 import type { CraftingRecipeId } from '../types/crafting'
 import { HOTBAR_SLOT_COUNT, type HotbarSlot } from '../types/hotbar'
 import type { MapId, WorldPoint } from '../types/map'
@@ -54,6 +68,7 @@ import {
   getLearnedAnimalSkillIds,
   normalizeAnimalTrust,
 } from '../utils/animalInstance'
+import { getPlayerActionResourceProfile } from '../utils/playerActionResources'
 
 const LEGACY_V4_STORAGE_KEY = 'crazy-animal-farm.save.v4'
 const LEGACY_V4_STORAGE_PREFIX = 'crazy-animal-farm.save.v4.'
@@ -62,8 +77,13 @@ const LEGACY_V2_STORAGE_KEY = 'crazy-animal-farm.save.v2'
 const LEGACY_V1_STORAGE_KEY = 'crazy-animal-farm.save.v1'
 const LEGACY_V5_STORAGE_PREFIX = 'crazy-animal-farm.save.v5.'
 const LEGACY_V6_STORAGE_PREFIX = 'crazy-animal-farm.save.v6.'
-const SAVE_STORAGE_PREFIX = 'crazy-animal-farm.save.v7.'
-const SAVE_VERSION = 7
+const LEGACY_V7_STORAGE_PREFIX = 'crazy-animal-farm.save.v7.'
+const LEGACY_V8_STORAGE_PREFIX = 'crazy-animal-farm.save.v8.'
+const LEGACY_V9_STORAGE_PREFIX = 'crazy-animal-farm.save.v9.'
+const SAVE_STORAGE_PREFIX = 'crazy-animal-farm.save.v10.'
+const PENDING_LOAD_SLOT_STORAGE_KEY =
+  'crazy-animal-farm.pending-load-slot'
+const SAVE_VERSION = 10
 let activeLoadSlotId: SaveSlotId = 'auto'
 type SaveSource = Readonly<{
   key: string
@@ -111,6 +131,46 @@ export class SaveService {
     return activeLoadSlotId
   }
 
+  requestLoadOnRestart(slotId: SaveSlotId) {
+    try {
+      sessionStorage.setItem(PENDING_LOAD_SLOT_STORAGE_KEY, slotId)
+      return true
+    } catch (error) {
+      console.warn('[SaveService] 불러올 슬롯을 예약하지 못했습니다.', error)
+      return false
+    }
+  }
+
+  hasPendingLoadOnRestart() {
+    try {
+      const slotId = sessionStorage.getItem(PENDING_LOAD_SLOT_STORAGE_KEY)
+      return Boolean(slotId && isSaveSlotId(slotId))
+    } catch (error) {
+      console.warn('[SaveService] 예약된 불러오기를 확인하지 못했습니다.', error)
+      return false
+    }
+  }
+
+  consumePendingLoadSlot(): SaveSlotId | null {
+    try {
+      const slotId = sessionStorage.getItem(
+        PENDING_LOAD_SLOT_STORAGE_KEY,
+      )
+
+      sessionStorage.removeItem(PENDING_LOAD_SLOT_STORAGE_KEY)
+
+      if (!slotId || !isSaveSlotId(slotId)) {
+        return null
+      }
+
+      activeLoadSlotId = slotId
+      return slotId
+    } catch (error) {
+      console.warn('[SaveService] 예약된 불러오기를 확인하지 못했습니다.', error)
+      return null
+    }
+  }
+
   getSlotSummaries(): readonly SaveSlotSummary[] {
     return SAVE_SLOT_DEFINITIONS.map((slot) => ({
       ...slot,
@@ -128,6 +188,21 @@ export class SaveService {
           key: slotStorageKey,
           value: localStorage.getItem(slotStorageKey),
           shouldMigrateToSlot: false,
+        },
+        {
+          key: getLegacyV9SlotStorageKey(slotId),
+          value: localStorage.getItem(getLegacyV9SlotStorageKey(slotId)),
+          shouldMigrateToSlot: true,
+        },
+        {
+          key: getLegacyV8SlotStorageKey(slotId),
+          value: localStorage.getItem(getLegacyV8SlotStorageKey(slotId)),
+          shouldMigrateToSlot: true,
+        },
+        {
+          key: getLegacyV7SlotStorageKey(slotId),
+          value: localStorage.getItem(getLegacyV7SlotStorageKey(slotId)),
+          shouldMigrateToSlot: true,
         },
         {
           key: getLegacyV6SlotStorageKey(slotId),
@@ -199,6 +274,9 @@ export class SaveService {
       }
 
       if (saveSource.shouldMigrateToSlot) {
+        this.discardInvalidSave(getLegacyV9SlotStorageKey(slotId))
+        this.discardInvalidSave(getLegacyV8SlotStorageKey(slotId))
+        this.discardInvalidSave(getLegacyV7SlotStorageKey(slotId))
         this.discardInvalidSave(getLegacyV6SlotStorageKey(slotId))
         this.discardInvalidSave(getLegacyV5SlotStorageKey(slotId))
         this.discardInvalidSave(getLegacyV4SlotStorageKey(slotId))
@@ -253,6 +331,9 @@ export class SaveService {
   deleteSlot(slotId: SaveSlotId) {
     try {
       localStorage.removeItem(getSlotStorageKey(slotId))
+      localStorage.removeItem(getLegacyV9SlotStorageKey(slotId))
+      localStorage.removeItem(getLegacyV8SlotStorageKey(slotId))
+      localStorage.removeItem(getLegacyV7SlotStorageKey(slotId))
       localStorage.removeItem(getLegacyV6SlotStorageKey(slotId))
       localStorage.removeItem(getLegacyV5SlotStorageKey(slotId))
       localStorage.removeItem(getLegacyV4SlotStorageKey(slotId))
@@ -287,12 +368,28 @@ export function getSaveSlotLabel(slotId: SaveSlotId) {
   )
 }
 
+function isSaveSlotId(value: string): value is SaveSlotId {
+  return SAVE_SLOT_DEFINITIONS.some((slot) => slot.id === value)
+}
+
 function getSlotStorageKey(slotId: SaveSlotId) {
   return `${SAVE_STORAGE_PREFIX}${slotId}`
 }
 
 function getLegacyV6SlotStorageKey(slotId: SaveSlotId) {
   return `${LEGACY_V6_STORAGE_PREFIX}${slotId}`
+}
+
+function getLegacyV7SlotStorageKey(slotId: SaveSlotId) {
+  return `${LEGACY_V7_STORAGE_PREFIX}${slotId}`
+}
+
+function getLegacyV8SlotStorageKey(slotId: SaveSlotId) {
+  return `${LEGACY_V8_STORAGE_PREFIX}${slotId}`
+}
+
+function getLegacyV9SlotStorageKey(slotId: SaveSlotId) {
+  return `${LEGACY_V9_STORAGE_PREFIX}${slotId}`
 }
 
 function getLegacyV5SlotStorageKey(slotId: SaveSlotId) {
@@ -425,8 +522,13 @@ function isGameSave(value: unknown): value is GameSave {
 }
 
 function isPlayerSaveData(value: unknown) {
+  if (!isRecord(value)) {
+    return false
+  }
+
+  const maxStamina = getSavedPlayerActionResourceProfile(value).maxStamina
+
   if (
-    !isRecord(value) ||
     typeof value.currentMapId !== 'string' ||
     !isMapId(value.currentMapId) ||
     !isWorldPoint(value.position) ||
@@ -449,9 +551,23 @@ function isPlayerSaveData(value: unknown) {
     (isFiniteNumber(value.shield) &&
       isFiniteNumber(value.maxShield) &&
       value.shield > value.maxShield) ||
+    (value.stamina !== undefined &&
+      (!isFiniteNumber(value.stamina) ||
+        value.stamina < 0 ||
+        value.stamina > maxStamina)) ||
     (value.technologyPoints !== undefined &&
       (!Number.isInteger(value.technologyPoints) ||
         (value.technologyPoints as number) < 0)) ||
+    (value.capturePower !== undefined &&
+      (!isFiniteNumber(value.capturePower) ||
+        value.capturePower < 0 ||
+        value.capturePower > PLAYER_MAX_CAPTURE_POWER)) ||
+    (value.equippedCaptureSupportModuleId !== undefined &&
+      value.equippedCaptureSupportModuleId !== null &&
+      (typeof value.equippedCaptureSupportModuleId !== 'string' ||
+        !isCaptureSupportModuleId(
+          value.equippedCaptureSupportModuleId,
+        ))) ||
     (value.unlockedRecipeIds !== undefined &&
       (!Array.isArray(value.unlockedRecipeIds) ||
         !value.unlockedRecipeIds.every(isCraftingRecipeId) ||
@@ -470,6 +586,10 @@ function isPlayerSaveData(value: unknown) {
       value.equippedItems,
       value.ownedToolIds,
       value.equippedToolId,
+    ) ||
+    !isEquipmentDurability(
+      value.equipmentDurability,
+      value.ownedToolIds,
     ) ||
     (value.hotbarSlots !== undefined &&
       !isHotbarSlots(value.hotbarSlots, value.ownedToolIds)) ||
@@ -517,7 +637,10 @@ function migrateLegacySave(value: unknown): unknown {
       value.version !== 3 &&
       value.version !== 4 &&
       value.version !== 5 &&
-      value.version !== 6) ||
+      value.version !== 6 &&
+      value.version !== 7 &&
+      value.version !== 8 &&
+      value.version !== 9) ||
     !isRecord(value.player)
   ) {
     return value
@@ -531,7 +654,10 @@ function migrateLegacySave(value: unknown): unknown {
     value.version === 3 ||
     value.version === 4 ||
     value.version === 5 ||
-    value.version === 6
+    value.version === 6 ||
+    value.version === 7 ||
+    value.version === 8 ||
+    value.version === 9
     ? value.player.equippedItems
     : typeof equippedToolId === 'string' &&
         isToolDefinitionId(equippedToolId) &&
@@ -565,11 +691,24 @@ function migrateLegacySave(value: unknown): unknown {
       hunger:
         value.version === 4 ||
         value.version === 5 ||
-        value.version === 6
+        value.version === 6 ||
+        value.version === 7 ||
+        value.version === 8 ||
+        value.version === 9
           ? isFiniteNumber(value.player.hunger)
             ? value.player.hunger
             : PLAYER_MAX_HUNGER
           : PLAYER_MAX_HUNGER,
+      capturePower:
+        value.version === 8 || value.version === 9
+          ? value.player.capturePower
+          : getDefaultPlayerCapturePower(
+              isFiniteNumber(value.player.level) ? value.player.level : 1,
+            ),
+      equippedCaptureSupportModuleId:
+        value.version === 8 || value.version === 9
+          ? value.player.equippedCaptureSupportModuleId
+          : null,
     },
     capturedAnimals,
     inventory: addNewFoodSlot(value.inventory),
@@ -600,10 +739,17 @@ function normalizeSaveForCurrentContent(value: unknown): unknown {
     value.player,
     capturedAnimals,
   )
+  const playerWithCompanion = addMissingCompanionState(playerWithParty)
+  const playerWithCapture = addMissingCaptureProgression(
+    playerWithCompanion,
+  )
+  const playerWithActionResources = addMissingPlayerActionResources(
+    playerWithCapture,
+  )
 
   return {
     ...value,
-    player: addMissingCompanionState(playerWithParty),
+    player: addMissingEquipmentDurability(playerWithActionResources),
     capturedAnimals,
     inventory: addMissingItemSlots(value.inventory),
     bases: Array.isArray(value.bases)
@@ -613,6 +759,117 @@ function normalizeSaveForCurrentContent(value: unknown): unknown {
             : base,
         )
       : value.bases,
+  }
+}
+
+function addMissingEquipmentDurability(playerValue: unknown): unknown {
+  if (!isRecord(playerValue) || !Array.isArray(playerValue.ownedToolIds)) {
+    return playerValue
+  }
+
+  const savedEquipmentDurability = playerValue.equipmentDurability
+  const existingDurability: Record<string, unknown> = isRecord(
+    savedEquipmentDurability,
+  )
+    ? savedEquipmentDurability
+    : {}
+  const equipmentDurability: Partial<Record<ToolDefinitionId, number>> = {}
+
+  playerValue.ownedToolIds.forEach((toolId) => {
+    if (typeof toolId !== 'string' || !isToolDefinitionId(toolId)) {
+      return
+    }
+
+    const maxDurability = getDefaultEquipmentDurability(toolId)
+
+    if (maxDurability === null) {
+      return
+    }
+
+    const savedDurability = existingDurability[toolId]
+
+    equipmentDurability[toolId] = isFiniteNumber(savedDurability)
+      ? Math.min(maxDurability, Math.max(0, savedDurability))
+      : maxDurability
+  })
+
+  return {
+    ...playerValue,
+    equipmentDurability,
+  }
+}
+
+function addMissingPlayerActionResources(playerValue: unknown): unknown {
+  if (!isRecord(playerValue)) {
+    return playerValue
+  }
+
+  const profile = getSavedPlayerActionResourceProfile(playerValue)
+  const stamina = isFiniteNumber(playerValue.stamina)
+    ? Math.min(profile.maxStamina, Math.max(0, playerValue.stamina))
+    : profile.maxStamina
+
+  return {
+    ...playerValue,
+    stamina,
+  }
+}
+
+function getSavedPlayerActionResourceProfile(
+  playerValue: Record<string, unknown>,
+) {
+  const equippedToolId =
+    typeof playerValue.equippedToolId === 'string' &&
+    isToolDefinitionId(playerValue.equippedToolId)
+      ? playerValue.equippedToolId
+      : 'bare-hands'
+  const equippedItems: Partial<
+    Record<EquipmentSlotId, ToolDefinitionId>
+  > = {}
+
+  const equippedItemsValue = playerValue.equippedItems
+
+  if (isRecord(equippedItemsValue)) {
+    EQUIPMENT_SLOT_IDS.forEach((slotId) => {
+      const toolId = equippedItemsValue[slotId]
+
+      if (typeof toolId === 'string' && isToolDefinitionId(toolId)) {
+        equippedItems[slotId] = toolId
+      }
+    })
+  }
+
+  return getPlayerActionResourceProfile(
+    equippedToolId,
+    equippedItems as EquippedItems,
+  )
+}
+
+function addMissingCaptureProgression(playerValue: unknown): unknown {
+  if (!isRecord(playerValue)) {
+    return playerValue
+  }
+
+  const level =
+    isFiniteNumber(playerValue.level) && playerValue.level >= 1
+      ? Math.floor(playerValue.level)
+      : 1
+  const capturePower = normalizePlayerCapturePower(
+    isFiniteNumber(playerValue.capturePower)
+      ? playerValue.capturePower
+      : Number.NaN,
+    level,
+  )
+  const equippedCaptureSupportModuleId =
+    typeof playerValue.equippedCaptureSupportModuleId === 'string' &&
+    isCaptureSupportModuleId(playerValue.equippedCaptureSupportModuleId)
+      ? playerValue.equippedCaptureSupportModuleId
+      : null
+
+  return {
+    ...playerValue,
+    capturePower,
+    equippedCaptureSupportModuleId,
   }
 }
 
@@ -1001,6 +1258,44 @@ function isEquippedItems(
   }
 
   return (value.rightHand ?? 'bare-hands') === equippedToolId
+}
+
+function isEquipmentDurability(
+  value: unknown,
+  ownedToolIds: readonly string[],
+) {
+  if (!isRecord(value)) {
+    return false
+  }
+
+  const durableToolIds = ownedToolIds.filter(
+    (toolId): toolId is ToolDefinitionId =>
+      isToolDefinitionId(toolId) &&
+      getDefaultEquipmentDurability(toolId) !== null,
+  )
+
+  return (
+    Object.entries(value).every(([toolId, durability]) => {
+      if (
+        !isToolDefinitionId(toolId) ||
+        !ownedToolIds.includes(toolId)
+      ) {
+        return false
+      }
+
+      const maxDurability = getDefaultEquipmentDurability(toolId)
+
+      return (
+        maxDurability !== null &&
+        isFiniteNumber(durability) &&
+        durability >= 0 &&
+        durability <= maxDurability
+      )
+    }) &&
+    durableToolIds.every((toolId) =>
+      Object.prototype.hasOwnProperty.call(value, toolId),
+    )
+  )
 }
 
 function isHotbarSlots(

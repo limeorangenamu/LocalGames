@@ -19,6 +19,7 @@ import type {
   AnimalCondition,
   AnimalDefinition,
   AnimalGender,
+  AnimalPassiveTraitDefinition,
   AnimalPassiveTraitId,
   AnimalPotential,
   AnimalStats,
@@ -418,7 +419,8 @@ function getCombinedStatModifiers(
 ) {
   return passiveTraitIds.reduce(
     (result, traitId) => {
-      const modifiers = ANIMAL_PASSIVE_TRAITS[traitId].statModifiers
+      const modifiers: AnimalPassiveTraitDefinition['statModifiers'] =
+        ANIMAL_PASSIVE_TRAITS[traitId].statModifiers
 
       return {
         maxHp: result.maxHp + (modifiers.maxHp ?? 0),

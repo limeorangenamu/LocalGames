@@ -15,9 +15,14 @@ const ITEM_ICONS: Readonly<Record<InventoryItemKey, string>> = {
   boarMeat: '🥩',
   roastedBoarMeat: '🍗',
   captureCapsule: '🔴',
+  reinforcedCaptureCapsule: '🔵',
+  precisionCaptureCapsule: '🟡',
+  captureScannerModule: '📡',
+  captureStabilizerModule: '🎯',
   rabbitWindHarness: '🪁',
   sheepGuardianBell: '🔔',
   boarStoneArmor: '🪨',
+  woodenArrow: '➶',
 }
 
 export function getItemIcon(itemId: InventoryItemKey) {
@@ -32,6 +37,14 @@ export function getEquipmentIcon(toolId: ToolDefinitionId) {
       return '⛏️'
     case 'wool-cloak':
       return '🧥'
+    case 'copper-sword':
+      return '⚔️'
+    case 'hunting-bow':
+      return '🏹'
+    case 'hide-armor':
+      return '🥋'
+    case 'copper-helmet':
+      return '⛑️'
     default:
       return '🪓'
   }

@@ -175,6 +175,7 @@ export type AnimalDefinition = Readonly<{
   attackCooldownMs: number
   detectionRange: number
   captureDifficulty: number
+  speciesCaptureBonus: number
   behaviorType: AnimalBehaviorType
   fleeHealthRatio: number
   retaliationDurationMs: number

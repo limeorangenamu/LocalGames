@@ -16,6 +16,7 @@ import {
   MAP_FADE_DURATION_MS,
   PLAYER_ATTACK_DAMAGE,
   PLAYER_ATTACK_RANGE,
+  PLAYER_PROJECTILE_HIT_RADIUS,
   RESPAWN_HUNGER,
   STARVATION_DAMAGE,
   STARVATION_DAMAGE_INTERVAL_MS,
@@ -27,7 +28,11 @@ import {
   getElementEffectivenessLabel,
 } from '../data/animalElements'
 import { TOOL_DEFINITIONS } from '../data/equipment'
-import { ITEM_DEFINITIONS } from '../data/items'
+import {
+  CAPTURE_SUPPORT_MODULES,
+  CAPTURE_TOOL_DEFINITIONS,
+  resolveActiveCaptureToolItemId,
+} from '../data/capture'
 import { getMapDefinition, isMapId } from '../data/maps'
 import {
   Animal,
@@ -35,8 +40,10 @@ import {
 } from '../entities/Animal'
 import { CaptureCapsule } from '../entities/CaptureCapsule'
 import { Player } from '../entities/Player'
+import { PlayerProjectile } from '../entities/PlayerProjectile'
 import {
   AnimalManager,
+  type AnimalAttackResult,
   type CaptureAttemptResult,
 } from '../managers/AnimalManager'
 import { BuildingManager } from '../managers/BuildingManager'
@@ -47,12 +54,24 @@ import { WorkManager } from '../managers/WorkManager'
 import { SaveService } from '../services/SaveService'
 import type { BuildingDefinitionId, PlacedBuilding } from '../types/building'
 import type { CompanionCommandMode } from '../types/animal'
-import type { ToolDefinitionId } from '../types/equipment'
+import type {
+  CapturePreviewState,
+  CaptureToolItemId,
+} from '../types/capture'
+import type {
+  EquippedItems,
+  ToolDefinitionId,
+} from '../types/equipment'
 import type { ItemStack } from '../types/item'
 import type { MapExitDefinition, MapId } from '../types/map'
 import type { GameSavePayload, MapSaveData } from '../types/save'
 import type { SaveSlotId } from '../types/save'
-import { calculateCaptureChance, getCaptureChanceLabel } from '../utils/capture'
+import {
+  calculateCaptureChanceBreakdown,
+  getCaptureChanceLabel,
+} from '../utils/capture'
+import { getPlayerActionResourceProfile } from '../utils/playerActionResources'
+import { getPlayerArmorRating } from '../utils/playerCombat'
 
 export class WorldScene extends Phaser.Scene {
   private player?: Player
@@ -78,6 +97,7 @@ export class WorldScene extends Phaser.Scene {
   private companionCommandKey?: Phaser.Input.Keyboard.Key
   private captureAimGraphics?: Phaser.GameObjects.Graphics
   private activeCaptureCapsule?: CaptureCapsule
+  private readonly playerProjectiles = new Set<PlayerProjectile>()
   private captureSequenceInProgress = false
   private isCaptureMode = false
   private isBuildMode = false
@@ -96,6 +116,7 @@ export class WorldScene extends Phaser.Scene {
   private handledManualSaveRequestId = 0
   private lastEquippedToolId: ToolDefinitionId = 'bare-hands'
   private lastEquippedShieldId: ToolDefinitionId | null = null
+  private lastActionResourceEquipmentSignature = ''
   private requestedMapId: string | null = null
   private requestedEntryId: string | null = null
 
@@ -137,9 +158,27 @@ export class WorldScene extends Phaser.Scene {
       gameStore.playerShield,
     )
     this.player.equipTool(TOOL_DEFINITIONS[gameStore.equippedToolId])
+    this.player.configureActionResources(
+      getPlayerActionResourceProfile(
+        gameStore.equippedToolId,
+        gameStore.equippedItems,
+      ),
+      gameStore.playerStamina,
+    )
+    this.player.configureArmorRating(
+      getPlayerArmorRating(
+        gameStore.equippedItems,
+        gameStore.equipmentDurability,
+      ),
+    )
     this.lastEquippedToolId = gameStore.equippedToolId
     this.lastEquippedShieldId =
       gameStore.equippedItems.shield ?? null
+    this.lastActionResourceEquipmentSignature =
+      this.getActionResourceEquipmentSignature(
+        gameStore.equippedToolId,
+        gameStore.equippedItems,
+      )
     this.physics.add.collider(this.player, obstacles)
 
     this.resourceManager = new ResourceManager(
@@ -233,7 +272,7 @@ export class WorldScene extends Phaser.Scene {
     camera.fadeIn(MAP_FADE_DURATION_MS, 0, 0, 0)
 
     gameStore.setActiveMode('normal')
-    gameStore.setCaptureTargetChance(null)
+    gameStore.setCapturePreview(null)
     gameStore.setCaptureMessage('')
     gameStore.setSelectedBuildingName(null)
     gameStore.setBuildMessage('')
@@ -249,6 +288,7 @@ export class WorldScene extends Phaser.Scene {
     )
     gameStore.setCurrentMap(mapDefinition.id, mapDefinition.name)
     gameStore.setPlayerHp(this.player.currentHp)
+    this.syncPlayerActionResourceState()
     gameStore.setPlayerWorldPosition({ x, y })
     const recoveryEvent = gameStore.recoverStoredAnimals(Date.now())
     this.synchronizeCompanionState()
@@ -311,6 +351,7 @@ export class WorldScene extends Phaser.Scene {
     this.companionCommandKey = undefined
     this.captureAimGraphics = undefined
     this.activeCaptureCapsule = undefined
+    this.playerProjectiles.clear()
     this.captureSequenceInProgress = false
     this.isCaptureMode = false
     this.isBuildMode = false
@@ -329,6 +370,7 @@ export class WorldScene extends Phaser.Scene {
     this.handledManualSaveRequestId = 0
     this.lastEquippedToolId = 'bare-hands'
     this.lastEquippedShieldId = null
+    this.lastActionResourceEquipmentSignature = ''
   }
 
   private hydrateSavedGame() {
@@ -416,6 +458,7 @@ export class WorldScene extends Phaser.Scene {
       this.player.currentShield,
       this.player.maxShield,
     )
+    this.syncPlayerActionResourceState()
     gameStore.setPlayerWorldPosition({ x: this.player.x, y: this.player.y })
     gameStore.setMapResourceStates(
       this.mapManager.definition.id,
@@ -452,13 +495,18 @@ export class WorldScene extends Phaser.Scene {
         level: gameStore.playerLevel,
         experience: gameStore.playerExperience,
         experienceToNextLevel: gameStore.playerExperienceToNextLevel,
+        capturePower: gameStore.playerCapturePower,
+        equippedCaptureSupportModuleId:
+          gameStore.equippedCaptureSupportModuleId,
         technologyPoints: gameStore.technologyPoints,
         unlockedRecipeIds: [...gameStore.unlockedRecipeIds],
         shield: gameStore.playerShield,
         maxShield: gameStore.playerMaxShield,
+        stamina: gameStore.playerStamina,
         ownedToolIds: [...gameStore.ownedToolIds],
         equippedToolId: gameStore.equippedToolId,
         equippedItems: { ...gameStore.equippedItems },
+        equipmentDurability: { ...gameStore.equipmentDurability },
         hotbarSlots: gameStore.hotbarSlots.map((slot) =>
           slot ? { ...slot } : null,
         ),
@@ -485,13 +533,18 @@ export class WorldScene extends Phaser.Scene {
       result.success ? result.savedAt : gameStore.lastSavedAt,
       result.success ? successMessage : result.message,
     )
+    return result
   }
 
   private readonly handleBeforeUnload = () => {
+    if (this.saveService.hasPendingLoadOnRestart()) {
+      return
+    }
+
     this.saveCurrentGame('브라우저 종료 전 저장했습니다.')
   }
 
-  update(time: number) {
+  update(time: number, delta: number) {
     if (!this.player) {
       return
     }
@@ -511,7 +564,7 @@ export class WorldScene extends Phaser.Scene {
 
     this.updateCompanionControls()
     this.synchronizeCompanionState()
-    this.player.updateMovement()
+    this.player.updateMovement(time, delta)
     this.updateCaptureMode()
     this.updateBuildMode()
     this.updateCraftMode()
@@ -527,6 +580,7 @@ export class WorldScene extends Phaser.Scene {
 
     if (playerDamaged) {
       const gameStore = useGameStore.getState()
+      gameStore.damageEquippedDefensiveItems(1)
 
       gameStore.setPlayerHp(this.player.currentHp)
       gameStore.setPlayerShieldState(
@@ -548,6 +602,7 @@ export class WorldScene extends Phaser.Scene {
 
     this.processWorkProduction(time)
     this.handlePrimaryInput(time)
+    this.updatePlayerProjectiles(time)
     this.handleCompanionTargetInput()
     this.updateCaptureProjectile()
     this.updateCaptureAimPreview()
@@ -567,11 +622,12 @@ export class WorldScene extends Phaser.Scene {
       this.player.currentShield,
       this.player.maxShield,
     )
+    this.syncPlayerActionResourceState()
     const nearbyExit = this.mapManager.findExitAt(this.player)
     gameStore.setTravelMessage(
       nearbyExit ? `E · ${nearbyExit.name}(으)로 이동` : '',
     )
-    this.syncCaptureTargetChance()
+    this.syncCapturePreview()
 
     if (this.isBuildMode && this.buildingManager) {
       gameStore.setBuildMessage(this.buildingManager.getPreviewMessage())
@@ -693,7 +749,7 @@ export class WorldScene extends Phaser.Scene {
 
     const gameStore = useGameStore.getState()
     gameStore.setActiveMode('normal')
-    gameStore.setCaptureTargetChance(null)
+    gameStore.setCapturePreview(null)
     gameStore.setCaptureMessage('')
   }
 
@@ -736,14 +792,17 @@ export class WorldScene extends Phaser.Scene {
       return
     }
 
-    this.handledManualSaveRequestId = gameStore.manualSaveRequestId
+    const requestId = gameStore.manualSaveRequestId
+
+    this.handledManualSaveRequestId = requestId
     const slotId = gameStore.requestedSaveSlotId
-    this.saveCurrentGame(
+    const result = this.saveCurrentGame(
       slotId === 'auto'
         ? '자동저장 슬롯에 게임 상태를 저장했습니다.'
         : `${this.getSaveSlotNumberLabel(slotId)}에 게임 상태를 저장했습니다.`,
       slotId,
     )
+    gameStore.completeManualSave(requestId, result.success)
   }
 
   private getSaveSlotNumberLabel(slotId: SaveSlotId) {
@@ -767,19 +826,71 @@ export class WorldScene extends Phaser.Scene {
 
     const equippedShieldId = gameStore.equippedItems.shield ?? null
 
-    if (equippedShieldId === this.lastEquippedShieldId) {
+    if (equippedShieldId !== this.lastEquippedShieldId) {
+      this.lastEquippedShieldId = equippedShieldId
+      const shieldCapacity = equippedShieldId
+        ? TOOL_DEFINITIONS[equippedShieldId].shieldCapacity ?? 0
+        : 0
+
+      this.player.configureShield(shieldCapacity, gameStore.playerShield)
+      gameStore.setPlayerShieldState(
+        this.player.currentShield,
+        this.player.maxShield,
+      )
+    }
+
+    const actionResourceEquipmentSignature =
+      this.getActionResourceEquipmentSignature(
+        equippedToolId,
+        gameStore.equippedItems,
+      )
+
+    if (
+      actionResourceEquipmentSignature !==
+      this.lastActionResourceEquipmentSignature
+    ) {
+      this.lastActionResourceEquipmentSignature =
+        actionResourceEquipmentSignature
+      this.player.configureActionResources(
+        getPlayerActionResourceProfile(
+          equippedToolId,
+          gameStore.equippedItems,
+        ),
+      )
+      this.player.configureArmorRating(
+        getPlayerArmorRating(
+          gameStore.equippedItems,
+          gameStore.equipmentDurability,
+        ),
+      )
+      this.syncPlayerActionResourceState()
+    }
+  }
+
+  private getActionResourceEquipmentSignature(
+    equippedToolId: ToolDefinitionId,
+    equippedItems: EquippedItems,
+  ) {
+    const equipmentEntries = Object.entries(equippedItems)
+      .sort(([leftSlot], [rightSlot]) => leftSlot.localeCompare(rightSlot))
+      .map(([slotId, toolId]) => `${slotId}:${toolId}`)
+      .join('|')
+
+    return `${equippedToolId}|${equipmentEntries}`
+  }
+
+  private syncPlayerActionResourceState() {
+    if (!this.player) {
       return
     }
 
-    this.lastEquippedShieldId = equippedShieldId
-    const shieldCapacity = equippedShieldId
-      ? TOOL_DEFINITIONS[equippedShieldId].shieldCapacity ?? 0
-      : 0
+    const snapshot = this.player.getActionResourceSnapshot(this.time.now)
 
-    this.player.configureShield(shieldCapacity, gameStore.playerShield)
-    gameStore.setPlayerShieldState(
-      this.player.currentShield,
-      this.player.maxShield,
+    useGameStore.getState().setPlayerActionResourceState(
+      snapshot.stamina,
+      snapshot.maxStamina,
+      snapshot.recoveryDelayed,
+      snapshot.movementState,
     )
   }
 
@@ -1121,7 +1232,7 @@ export class WorldScene extends Phaser.Scene {
     )
 
     if (!this.isCaptureMode) {
-      gameStore.setCaptureTargetChance(null)
+      gameStore.setCapturePreview(null)
       this.captureAimGraphics?.clear()
     }
   }
@@ -1155,7 +1266,7 @@ export class WorldScene extends Phaser.Scene {
 
     const gameStore = useGameStore.getState()
     gameStore.setActiveMode('build')
-    gameStore.setCaptureTargetChance(null)
+    gameStore.setCapturePreview(null)
     gameStore.setCaptureMessage('')
     gameStore.setBuildMessage('건설 위치를 선택하세요.')
   }
@@ -1198,7 +1309,7 @@ export class WorldScene extends Phaser.Scene {
         this.captureAimGraphics?.clear()
         const gameStore = useGameStore.getState()
         gameStore.setActiveMode('normal')
-        gameStore.setCaptureTargetChance(null)
+        gameStore.setCapturePreview(null)
         gameStore.setCaptureMessage('')
       } else if (this.isCraftMode) {
         this.exitCraftMode()
@@ -1540,19 +1651,26 @@ export class WorldScene extends Phaser.Scene {
       origin,
       pointerWorldPosition,
     )
+
+    if (this.player.getCombatStyle() === 'ranged') {
+      this.handleRangedPrimaryAction(time, origin, attackDirection)
+      return
+    }
+
+    const attackRange = this.player.getCombatRange(PLAYER_ATTACK_RANGE)
     const aimPoint = {
-      x: origin.x + attackDirection.x * PLAYER_ATTACK_RANGE,
-      y: origin.y + attackDirection.y * PLAYER_ATTACK_RANGE,
+      x: origin.x + attackDirection.x * attackRange,
+      y: origin.y + attackDirection.y * attackRange,
     }
     const resourceTarget = this.resourceManager.findClosestTarget(
       origin,
       aimPoint,
-      PLAYER_ATTACK_RANGE,
+      attackRange,
     )
     const animalTarget = this.animalManager.findClosestTarget(
       origin,
       aimPoint,
-      PLAYER_ATTACK_RANGE,
+      attackRange,
     )
     const actionKind = animalTarget
       ? 'combat'
@@ -1564,6 +1682,8 @@ export class WorldScene extends Phaser.Scene {
       return
     }
 
+    this.consumeEquippedItemDurability()
+
     this.showAttackEffect(origin, attackDirection)
 
     if (animalTarget) {
@@ -1573,38 +1693,7 @@ export class WorldScene extends Phaser.Scene {
         time,
         origin,
       )
-      this.collectDrops(attackResult?.drops ?? [])
-
-      if (attackResult?.defeated) {
-        const gameStore = useGameStore.getState()
-        gameStore.gainPlayerExperience(24)
-        const growthEvents = gameStore.gainAnimalPartyExperience(
-          18,
-          gameStore.summonedCompanionAnimalId,
-        )
-        const growthMessage = this.getAnimalGrowthMessage(growthEvents)
-
-        if (growthMessage) {
-          gameStore.setCompanionMessage(growthMessage.trim())
-        }
-
-        if (gameStore.companionTargetName === animalTarget.definition.name) {
-          gameStore.setCompanionTargetName(null)
-        }
-      } else {
-        const gameStore = useGameStore.getState()
-
-        if (
-          gameStore.companionCommandMode === 'focus' &&
-          gameStore.summonedCompanionAnimalId &&
-          this.companionManager?.commandAttack(animalTarget)
-        ) {
-          gameStore.setCompanionTargetName(animalTarget.definition.name)
-          gameStore.setCompanionMessage(
-            `${animalTarget.definition.name}에게 집중 공격 명령을 내렸습니다.`,
-          )
-        }
-      }
+      this.handlePlayerAnimalAttackResult(animalTarget, attackResult)
       return
     }
 
@@ -1621,6 +1710,149 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  private handleRangedPrimaryAction(
+    time: number,
+    origin: Readonly<{ x: number; y: number }>,
+    direction: Readonly<{ x: number; y: number }>,
+  ) {
+    if (!this.player) {
+      return
+    }
+
+    const gameStore = useGameStore.getState()
+    const equippedToolId = gameStore.equippedToolId
+    const definition = TOOL_DEFINITIONS[equippedToolId]
+    const ammunitionItemId = this.player.getAmmunitionItemId()
+
+    if (!ammunitionItemId || gameStore.inventory[ammunitionItemId] <= 0) {
+      gameStore.setCombatMessage('사용할 수 있는 탄약이 없습니다.')
+      return
+    }
+
+    if (
+      definition.maxDurability !== undefined &&
+      (gameStore.equipmentDurability[equippedToolId] ??
+        definition.maxDurability) <= 0
+    ) {
+      gameStore.setCombatMessage(`${definition.name}을(를) 먼저 수리하세요.`)
+      return
+    }
+
+    if (!this.player.tryPrimaryAction(time, 'combat')) {
+      return
+    }
+
+    if (!gameStore.consumeInventoryItem(ammunitionItemId, 1)) {
+      gameStore.setCombatMessage('탄약 상태가 변경되어 발사하지 못했습니다.')
+      return
+    }
+
+    const projectileOrigin = {
+      x: origin.x + direction.x * 30,
+      y: origin.y + direction.y * 30,
+    }
+    const projectile = new PlayerProjectile(
+      this,
+      projectileOrigin,
+      direction,
+      this.player.getProjectileSpeed(),
+      this.player.getCombatRange(PLAYER_ATTACK_RANGE),
+      this.player.getCombatDamage(PLAYER_ATTACK_DAMAGE),
+    )
+
+    this.playerProjectiles.add(projectile)
+    this.consumeEquippedItemDurability()
+    gameStore.setCombatMessage('')
+  }
+
+  private updatePlayerProjectiles(time: number) {
+    if (!this.animalManager) {
+      return
+    }
+
+    this.playerProjectiles.forEach((projectile) => {
+      if (!projectile.active) {
+        this.playerProjectiles.delete(projectile)
+        return
+      }
+
+      const target = this.animalManager?.findClosestToPoint(
+        projectile,
+        PLAYER_PROJECTILE_HIT_RADIUS,
+      )
+
+      if (target) {
+        const attackResult = this.animalManager?.attack(
+          target,
+          projectile.damage,
+          time,
+          projectile,
+        )
+
+        this.handlePlayerAnimalAttackResult(target, attackResult ?? null)
+        projectile.destroy()
+        this.playerProjectiles.delete(projectile)
+        return
+      }
+
+      if (projectile.hasExceededRange()) {
+        projectile.destroy()
+        this.playerProjectiles.delete(projectile)
+      }
+    })
+  }
+
+  private consumeEquippedItemDurability() {
+    const gameStore = useGameStore.getState()
+    const equippedToolId = gameStore.equippedToolId
+    const durabilityLoss =
+      TOOL_DEFINITIONS[equippedToolId].durabilityLossPerUse ?? 0
+
+    if (durabilityLoss > 0) {
+      gameStore.damageEquipment(equippedToolId, durabilityLoss)
+    }
+  }
+
+  private handlePlayerAnimalAttackResult(
+    animalTarget: Animal,
+    attackResult: AnimalAttackResult | null,
+  ) {
+    this.collectDrops(attackResult?.drops ?? [])
+
+    if (attackResult?.defeated) {
+      const gameStore = useGameStore.getState()
+      gameStore.gainPlayerExperience(24)
+      const growthEvents = gameStore.gainAnimalPartyExperience(
+        18,
+        gameStore.summonedCompanionAnimalId,
+      )
+      const growthMessage = this.getAnimalGrowthMessage(growthEvents)
+
+      if (growthMessage) {
+        gameStore.setCompanionMessage(growthMessage.trim())
+      }
+
+      if (gameStore.companionTargetName === animalTarget.definition.name) {
+        gameStore.setCompanionTargetName(null)
+      }
+      return
+    }
+
+    const gameStore = useGameStore.getState()
+
+    if (
+      attackResult &&
+      gameStore.companionCommandMode === 'focus' &&
+      gameStore.summonedCompanionAnimalId &&
+      this.companionManager?.commandAttack(animalTarget)
+    ) {
+      gameStore.setCompanionTargetName(animalTarget.definition.name)
+      gameStore.setCompanionMessage(
+        `${animalTarget.definition.name}에게 집중 공격 명령을 내렸습니다.`,
+      )
+    }
+  }
+
   private tryCapture() {
     if (!this.player || !this.animalManager) {
       return
@@ -1633,8 +1865,20 @@ export class WorldScene extends Phaser.Scene {
       return
     }
 
-    if (!gameStore.consumeInventoryItem('captureCapsule', 1)) {
-      gameStore.setCaptureMessage('수상한 포획 캡슐이 없습니다.')
+    const captureToolItemId = resolveActiveCaptureToolItemId(
+      gameStore.inventory,
+      gameStore.hotbarSlots,
+      gameStore.selectedHotbarIndex,
+    )
+
+    if (!captureToolItemId) {
+      gameStore.setCapturePreview(null)
+      gameStore.setCaptureMessage('사용할 수 있는 포획 캡슐이 없습니다.')
+      return
+    }
+
+    if (!gameStore.consumeInventoryItem(captureToolItemId, 1)) {
+      gameStore.setCaptureMessage('선택한 포획 캡슐을 사용할 수 없습니다.')
       return
     }
 
@@ -1646,7 +1890,14 @@ export class WorldScene extends Phaser.Scene {
       x: pointer.worldX,
       y: pointer.worldY,
     })
-    const capsule = new CaptureCapsule(this, playerPosition, direction)
+    const captureTool = CAPTURE_TOOL_DEFINITIONS[captureToolItemId]
+    const capsule = new CaptureCapsule(
+      this,
+      playerPosition,
+      direction,
+      captureToolItemId,
+      captureTool.projectileTint,
+    )
     const overlap = this.physics.add.overlap(
       capsule,
       this.animalManager.getPhysicsGroup(),
@@ -1659,7 +1910,9 @@ export class WorldScene extends Phaser.Scene {
 
     capsule.once('destroy', () => overlap.destroy())
     this.activeCaptureCapsule = capsule
-    gameStore.setCaptureMessage('포획 캡슐을 투척했습니다.')
+    gameStore.setCaptureMessage(
+      `${captureTool.gradeName} 포획 캡슐을 투척했습니다.`,
+    )
   }
 
   private updateCaptureProjectile() {
@@ -1703,7 +1956,12 @@ export class WorldScene extends Phaser.Scene {
       return
     }
 
-    const chance = this.getTargetCaptureChance(target)
+    const capturePreview = this.getTargetCapturePreview(
+      target,
+      capsule.toolItemId,
+      capsule.getLaunchPosition(),
+    )
+    const chance = capturePreview.breakdown.chance
     const result = this.animalManager.rollCapture(target, chance)
 
     if (!result) {
@@ -1729,9 +1987,9 @@ export class WorldScene extends Phaser.Scene {
     }
 
     const gameStore = useGameStore.getState()
-    gameStore.setCaptureTargetChance(chance)
+    gameStore.setCapturePreview(capturePreview)
     gameStore.setCaptureMessage(
-      `캡슐 적중 · 동물을 흡수하는 중 · ${this.formatChance(chance)}`,
+      `캡슐 적중${capturePreview.isRearHit ? ' · 후방 보정' : ''}${capturePreview.activeStatusEffectIds.length > 0 ? ` · 상태 보정 ${capturePreview.activeStatusEffectIds.length}개` : ''} · ${this.formatChance(chance)}`,
     )
   }
 
@@ -1786,12 +2044,12 @@ export class WorldScene extends Phaser.Scene {
           gameStore.gainPlayerExperience(32)
           this.collectDrops(result.drops)
           gameStore.setCaptureMessage(
-            `포획 성공! ${result.capturedAnimal.name} · ${this.formatChance(result.chance)}`,
+            `포획 성공! ${result.capturedAnimal.name} · ${CAPTURE_TOOL_DEFINITIONS[capsule.toolItemId].gradeName} 캡슐 · ${this.formatChance(result.chance)}`,
           )
           this.saveCurrentGame('동물 포획 후 자동 저장했습니다.')
         }
 
-        gameStore.setCaptureTargetChance(null)
+        gameStore.setCapturePreview(null)
         this.finishCaptureCapsule(capsule)
       },
     })
@@ -1815,7 +2073,7 @@ export class WorldScene extends Phaser.Scene {
       onComplete: () => {
         target.escapeCapture(snapshot, () => {
           useGameStore.getState().setCaptureMessage(
-            `포획 실패 · ${this.formatChance(chance)} · 동물이 캡슐에서 탈출했습니다.`,
+            `포획 실패 · ${CAPTURE_TOOL_DEFINITIONS[capsule.toolItemId].gradeName} 캡슐 · ${this.formatChance(chance)} · 동물이 캡슐에서 탈출했습니다.`,
           )
           this.finishCaptureCapsule(capsule)
         })
@@ -1855,16 +2113,43 @@ export class WorldScene extends Phaser.Scene {
     )
   }
 
-  private getTargetCaptureChance(target: Animal) {
-    return calculateCaptureChance({
+  private getTargetCapturePreview(
+    target: Animal,
+    toolItemId: CaptureToolItemId,
+    captureOrigin: Readonly<{ x: number; y: number }>,
+  ): CapturePreviewState {
+    const gameStore = useGameStore.getState()
+    const activeStatusEffectIds = target.getActiveTargetStatusEffectIds(
+      this.time.now,
+    )
+    const isRearHit = target.isPositionBehind(captureOrigin)
+    const supportModuleId = gameStore.equippedCaptureSupportModuleId
+    const supportModule = supportModuleId
+      ? CAPTURE_SUPPORT_MODULES[supportModuleId]
+      : null
+    const breakdown = calculateCaptureChanceBreakdown({
       currentHp: target.currentHp,
       maxHp: target.definition.maxHp,
       captureDifficulty: target.definition.captureDifficulty,
-      toolBonus: ITEM_DEFINITIONS.captureCapsule.captureBonus ?? 0,
+      toolBonus: CAPTURE_TOOL_DEFINITIONS[toolItemId].captureBonus,
+      activeStatusEffectCount: activeStatusEffectIds.length,
+      isRearHit,
+      playerCapturePower: gameStore.playerCapturePower,
+      supportModule,
+      speciesBonus: target.definition.speciesCaptureBonus,
     })
+
+    return {
+      targetName: target.definition.name,
+      toolItemId,
+      supportModuleId,
+      activeStatusEffectIds,
+      isRearHit,
+      breakdown,
+    }
   }
 
-  private syncCaptureTargetChance() {
+  private syncCapturePreview() {
     const gameStore = useGameStore.getState()
 
     if (this.captureSequenceInProgress) {
@@ -1872,13 +2157,25 @@ export class WorldScene extends Phaser.Scene {
     }
 
     if (!this.isCaptureMode) {
-      gameStore.setCaptureTargetChance(null)
+      gameStore.setCapturePreview(null)
       return
     }
 
     const target = this.findCapturePreviewTarget()
-    gameStore.setCaptureTargetChance(
-      target ? this.getTargetCaptureChance(target) : null,
+    const toolItemId = resolveActiveCaptureToolItemId(
+      gameStore.inventory,
+      gameStore.hotbarSlots,
+      gameStore.selectedHotbarIndex,
+    )
+
+    gameStore.setCapturePreview(
+      target && toolItemId && this.player
+        ? this.getTargetCapturePreview(
+            target,
+            toolItemId,
+            { x: this.player.x, y: this.player.y },
+          )
+        : null,
     )
   }
 
@@ -1951,6 +2248,7 @@ export class WorldScene extends Phaser.Scene {
     this.player.setPosition(spawn.x, spawn.y)
     this.player.setVelocity(0, 0)
     this.player.healFully()
+    this.player.restoreStaminaFully()
     this.player.restoreShieldFully()
     this.cameras.main.flash(220, 255, 255, 255)
 
@@ -1960,6 +2258,7 @@ export class WorldScene extends Phaser.Scene {
       this.player.currentShield,
       this.player.maxShield,
     )
+    this.syncPlayerActionResourceState()
     gameStore.setPlayerHunger(RESPAWN_HUNGER)
     gameStore.setHungerMessage(
       `쓰러진 뒤 허기가 ${RESPAWN_HUNGER}까지 회복되었습니다.`,

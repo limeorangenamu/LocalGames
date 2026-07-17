@@ -1,4 +1,7 @@
+import type { InventoryItemKey, ItemStack } from './item'
+
 export type PrimaryActionKind = 'combat' | 'gathering'
+export type PlayerCombatStyle = 'unarmed' | 'melee' | 'ranged'
 export type EquipmentSlotId =
   | 'head'
   | 'earring'
@@ -18,9 +21,17 @@ export type ToolDefinitionId =
   | 'wooden-shield'
   | 'copper-pickaxe'
   | 'wool-cloak'
+  | 'copper-sword'
+  | 'hunting-bow'
+  | 'hide-armor'
+  | 'copper-helmet'
 
 export type EquippedItems = Readonly<
   Partial<Record<EquipmentSlotId, ToolDefinitionId>>
+>
+
+export type EquipmentDurability = Readonly<
+  Partial<Record<ToolDefinitionId, number>>
 >
 
 export type ToolDefinition = Readonly<{
@@ -31,5 +42,18 @@ export type ToolDefinition = Readonly<{
   combatSpeedMultiplier: number
   resourceDamageMultiplier: number
   combatDamageMultiplier: number
+  combatStyle?: PlayerCombatStyle
+  weaponDamage?: number
+  attackRange?: number
+  ammunitionItemId?: InventoryItemKey
+  projectileSpeed?: number
+  armorRating?: number
   shieldCapacity?: number
+  maxDurability?: number
+  durabilityLossPerUse?: number
+  repairIngredients?: readonly ItemStack[]
+  staminaCapacityBonus?: number
+  staminaCostMultiplier?: number
+  staminaRecoveryMultiplier?: number
+  dodgeDistanceMultiplier?: number
 }>

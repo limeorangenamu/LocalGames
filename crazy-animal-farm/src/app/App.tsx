@@ -11,10 +11,11 @@ import { TitleScreen } from '../ui/TitleScreen'
 import './App.css'
 
 const saveService = new SaveService()
+const pendingLoadSlotId = saveService.consumePendingLoadSlot()
 
 export function App() {
   const [screen, setScreen] = useState<'title' | 'slots' | 'playing'>(
-    'title',
+    pendingLoadSlotId ? 'playing' : 'title',
   )
 
   const startFromSlot = (slotId: SaveSlotId) => {
