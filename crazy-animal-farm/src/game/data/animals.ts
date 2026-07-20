@@ -34,6 +34,24 @@ export const CRAZY_RABBIT_DEFINITION = {
       { item: 'rabbitFur', minAmount: 2, maxAmount: 2, chance: 1 },
     ],
   },
+  blueprintLootTables: {
+    defeated: [
+      {
+        blueprintId: 'hunting-bow:uncommon',
+        minAmount: 1,
+        maxAmount: 1,
+        chance: 0.08,
+      },
+    ],
+    captured: [
+      {
+        blueprintId: 'stone-axe:uncommon',
+        minAmount: 1,
+        maxAmount: 1,
+        chance: 0.05,
+      },
+    ],
+  },
   decisionInterval: { minMs: 200, maxMs: 400 },
   workSkills: { logging: 1, carrying: 1 },
   skillProgression: [
@@ -82,6 +100,23 @@ export const WOOLLY_SHEEP_DEFINITION = {
       { item: 'sheepWool', minAmount: 2, maxAmount: 3, chance: 1 },
     ],
   },
+  blueprintLootTables: {
+    defeated: [
+      {
+        blueprintId: 'wool-cloak:uncommon',
+        minAmount: 1,
+        maxAmount: 1,
+        chance: 0.1,
+      },
+      {
+        blueprintId: 'hide-armor:uncommon',
+        minAmount: 1,
+        maxAmount: 1,
+        chance: 0.04,
+      },
+    ],
+    captured: [],
+  },
   decisionInterval: { minMs: 260, maxMs: 460 },
   workSkills: { farming: 1, carrying: 2 },
   skillProgression: [
@@ -128,6 +163,30 @@ export const ROCK_BOAR_DEFINITION = {
     ],
     captured: [
       { item: 'boarHide', minAmount: 1, maxAmount: 2, chance: 1 },
+    ],
+  },
+  blueprintLootTables: {
+    defeated: [
+      {
+        blueprintId: 'copper-sword:uncommon',
+        minAmount: 1,
+        maxAmount: 1,
+        chance: 0.09,
+      },
+      {
+        blueprintId: 'copper-helmet:uncommon',
+        minAmount: 1,
+        maxAmount: 1,
+        chance: 0.05,
+      },
+    ],
+    captured: [
+      {
+        blueprintId: 'copper-pickaxe:uncommon',
+        minAmount: 1,
+        maxAmount: 1,
+        chance: 0.04,
+      },
     ],
   },
   decisionInterval: { minMs: 180, maxMs: 340 },

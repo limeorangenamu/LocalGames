@@ -5,7 +5,9 @@ import type {
 import type { PlacedBuilding } from './building'
 import type { InventoryItemKey } from './item'
 import type {
+  EquipmentBlueprintInventory,
   EquipmentDurability,
+  EquipmentVariants,
   EquippedItems,
   ToolDefinitionId,
 } from './equipment'
@@ -42,6 +44,8 @@ export type PlayerSaveData = Readonly<{
   equippedToolId: ToolDefinitionId
   equippedItems: EquippedItems
   equipmentDurability?: EquipmentDurability
+  equipmentVariants?: EquipmentVariants
+  equipmentBlueprints?: EquipmentBlueprintInventory
   hotbarSlots?: readonly HotbarSlot[]
   selectedHotbarIndex?: number
   activeAnimalPartyIds?: readonly string[]

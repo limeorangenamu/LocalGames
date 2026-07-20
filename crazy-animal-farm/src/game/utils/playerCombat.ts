@@ -1,6 +1,10 @@
-import { TOOL_DEFINITIONS } from '../data/equipment'
+import {
+  getEffectiveToolDefinition,
+  getEquipmentMaxDurability,
+} from '../data/equipmentProgression'
 import type {
   EquipmentDurability,
+  EquipmentVariants,
   EquippedItems,
   ToolDefinitionId,
 } from '../types/equipment'
@@ -8,6 +12,7 @@ import type {
 export function getPlayerArmorRating(
   equippedItems: EquippedItems,
   equipmentDurability: EquipmentDurability,
+  equipmentVariants: EquipmentVariants,
 ) {
   const equippedToolIds = new Set(
     Object.values(equippedItems).filter(
@@ -18,11 +23,12 @@ export function getPlayerArmorRating(
   let armorRating = 0
 
   equippedToolIds.forEach((toolId) => {
-    if (!isEquipmentUsable(toolId, equipmentDurability)) {
+    if (!isEquipmentUsable(toolId, equipmentDurability, equipmentVariants)) {
       return
     }
 
-    armorRating += TOOL_DEFINITIONS[toolId].armorRating ?? 0
+    armorRating +=
+      getEffectiveToolDefinition(toolId, equipmentVariants).armorRating ?? 0
   })
 
   return Math.max(0, Math.round(armorRating))
@@ -47,10 +53,11 @@ export function calculateMitigatedPlayerDamage(
 export function isEquipmentUsable(
   toolId: ToolDefinitionId,
   equipmentDurability: EquipmentDurability,
+  equipmentVariants: EquipmentVariants,
 ) {
-  const maxDurability = TOOL_DEFINITIONS[toolId].maxDurability
+  const maxDurability = getEquipmentMaxDurability(toolId, equipmentVariants)
 
-  if (maxDurability === undefined) {
+  if (maxDurability === null) {
     return true
   }
 
@@ -60,10 +67,11 @@ export function isEquipmentUsable(
 export function getEquipmentDurability(
   toolId: ToolDefinitionId,
   equipmentDurability: EquipmentDurability,
+  equipmentVariants: EquipmentVariants,
 ) {
-  const maxDurability = TOOL_DEFINITIONS[toolId].maxDurability
+  const maxDurability = getEquipmentMaxDurability(toolId, equipmentVariants)
 
-  if (maxDurability === undefined) {
+  if (maxDurability === null) {
     return null
   }
 

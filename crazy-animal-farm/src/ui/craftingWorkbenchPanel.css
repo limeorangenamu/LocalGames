@@ -112,6 +112,68 @@
   scrollbar-width: thin;
 }
 
+.blueprint-synthesis {
+  display: grid;
+  padding: 0.72rem;
+  border: 1px solid rgb(111 174 225 / 28%);
+  border-radius: 0.68rem;
+  background: linear-gradient(145deg, rgb(22 48 65 / 82%), rgb(10 28 34 / 88%));
+  gap: 0.55rem;
+}
+
+.blueprint-synthesis__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.blueprint-synthesis__heading strong {
+  color: #b9dcff;
+  font-size: 0.75rem;
+}
+
+.blueprint-synthesis__heading span {
+  color: #83a2b8;
+  font-size: 0.58rem;
+}
+
+.blueprint-synthesis__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.42rem;
+}
+
+.blueprint-synthesis__list article {
+  display: grid;
+  min-width: 0;
+  padding: 0.42rem;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  border: 1px solid rgb(161 203 234 / 14%);
+  border-radius: 0.48rem;
+  background: rgb(6 23 31 / 54%);
+  gap: 0.38rem;
+}
+
+.blueprint-synthesis__list article strong {
+  overflow: hidden;
+  color: #c7d9e6;
+  font-size: 0.58rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blueprint-synthesis__list article small {
+  color: #80b9da;
+  font-size: 0.56rem;
+}
+
+.blueprint-synthesis__list article button {
+  padding: 0.34rem 0.45rem;
+  font-size: 0.54rem;
+}
+
 .workbench-recipe {
   display: grid;
   min-width: 0;
@@ -180,6 +242,41 @@
 .workbench-recipe__summary strong {
   color: #c9d5c6;
   font-size: 0.6rem;
+}
+
+.workbench-recipe__rarity {
+  display: grid;
+  margin-top: 0.4rem;
+  grid-template-columns: auto minmax(7rem, 1fr);
+  align-items: center;
+  gap: 0.28rem 0.45rem;
+}
+
+.workbench-recipe__rarity > span,
+.workbench-recipe__rarity small {
+  color: #91a899;
+  font-size: 0.54rem;
+}
+
+.workbench-recipe__rarity small {
+  grid-column: 2;
+}
+
+.workbench-recipe__rarity select {
+  min-width: 0;
+  padding: 0.3rem 0.38rem;
+  border: 1px solid rgb(226 207 120 / 24%);
+  border-radius: 0.35rem;
+  color: #eee5c5;
+  background: #17291d;
+  font: inherit;
+  font-size: 0.57rem;
+  cursor: pointer;
+}
+
+.workbench-recipe__rarity select:focus-visible {
+  outline: 2px solid #efd36c;
+  outline-offset: 2px;
 }
 
 .workbench-recipe__ingredients {
@@ -296,6 +393,14 @@
   .workbench-recipe > button {
     grid-column: 1 / -1;
     grid-row: auto;
+  }
+
+  .blueprint-synthesis__heading {
+    display: grid;
+  }
+
+  .blueprint-synthesis__list {
+    grid-template-columns: 1fr;
   }
 
   .crafting-workbench__footer {

@@ -1,4 +1,5 @@
 import type { InventoryItemKey, LootTableEntry } from './item'
+import type { EquipmentBlueprintLootEntry } from './equipment'
 import type { WorkAssignment, WorkSkill } from './work'
 
 export type AnimalAiState =
@@ -180,6 +181,9 @@ export type AnimalDefinition = Readonly<{
   fleeHealthRatio: number
   retaliationDurationMs: number
   lootTables: AnimalLootTables
+  blueprintLootTables: Readonly<
+    Record<AnimalLootOutcome, readonly EquipmentBlueprintLootEntry[]>
+  >
   decisionInterval: Readonly<{
     minMs: number
     maxMs: number

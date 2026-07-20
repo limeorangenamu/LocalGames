@@ -1,5 +1,10 @@
 import type { DragEvent } from 'react'
 import { TOOL_DEFINITIONS } from '../game/data/equipment'
+import {
+  EQUIPMENT_RARITIES,
+  getEquipmentRarity,
+} from '../game/data/equipmentProgression'
+import type { EquipmentVariants } from '../game/types/equipment'
 import { ITEM_DEFINITIONS } from '../game/data/items'
 import type { HotbarSlot } from '../game/types/hotbar'
 import { useGameStore } from '../store/useGameStore'
@@ -22,6 +27,7 @@ export function Hotbar({
 }: HotbarProps) {
   const inventory = useGameStore((state) => state.inventory)
   const hotbarSlots = useGameStore((state) => state.hotbarSlots)
+  const equipmentVariants = useGameStore((state) => state.equipmentVariants)
   const selectedHotbarIndex = useGameStore(
     (state) => state.selectedHotbarIndex,
   )
@@ -34,7 +40,11 @@ export function Hotbar({
     >
       {hotbarSlots.map((slot, index) => {
         const amount = slot?.kind === 'item' ? inventory[slot.itemId] : null
-        const label = getHotbarLabel(slot)
+        const label = getHotbarLabel(slot, equipmentVariants)
+        const toolRarity =
+          slot?.kind === 'tool'
+            ? getEquipmentRarity(slot.toolId, equipmentVariants)
+            : null
         const keyLabel = getHotbarKeyLabel(index)
 
         return (
@@ -73,7 +83,16 @@ export function Hotbar({
                       ? getItemIcon(slot.itemId)
                       : getEquipmentIcon(slot.toolId)}
                   </span>
-                  <span className="hotbar__name">{label}</span>
+                  <span
+                    className="hotbar__name"
+                    style={
+                      toolRarity
+                        ? { color: EQUIPMENT_RARITIES[toolRarity].color }
+                        : undefined
+                    }
+                  >
+                    {label}
+                  </span>
                   {amount !== null && (
                     <strong className="hotbar__amount">{amount}</strong>
                   )}
@@ -98,14 +117,17 @@ export function Hotbar({
   )
 }
 
-function getHotbarLabel(slot: HotbarSlot) {
+function getHotbarLabel(
+  slot: HotbarSlot,
+  equipmentVariants: EquipmentVariants,
+) {
   if (!slot) {
     return ''
   }
 
   return slot.kind === 'item'
     ? ITEM_DEFINITIONS[slot.itemId].name
-    : TOOL_DEFINITIONS[slot.toolId].name
+    : `[${EQUIPMENT_RARITIES[getEquipmentRarity(slot.toolId, equipmentVariants)].name}] ${TOOL_DEFINITIONS[slot.toolId].name}`
 }
 
 function getHotbarKeyLabel(index: number) {

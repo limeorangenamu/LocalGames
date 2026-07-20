@@ -13,7 +13,11 @@ import {
   resolveActiveCaptureToolItemId,
 } from '../game/data/capture'
 import { ITEM_DEFINITIONS } from '../game/data/items'
-import { TOOL_DEFINITIONS } from '../game/data/equipment'
+import {
+  EQUIPMENT_RARITIES,
+  getEffectiveToolDefinition,
+  getEquipmentRarity,
+} from '../game/data/equipmentProgression'
 import type {
   AnimalSelfStatusEffectId,
   CapturedAnimal,
@@ -117,6 +121,7 @@ export function Hud() {
   const equipmentDurability = useGameStore(
     (state) => state.equipmentDurability,
   )
+  const equipmentVariants = useGameStore((state) => state.equipmentVariants)
   const combatMessage = useGameStore((state) => state.combatMessage)
   const hotbarSlots = useGameStore((state) => state.hotbarSlots)
   const selectedHotbarIndex = useGameStore(
@@ -202,14 +207,23 @@ export function Hud() {
     hotbarSlots,
     selectedHotbarIndex,
   )
-  const equippedTool = TOOL_DEFINITIONS[equippedToolId]
+  const equippedTool = getEffectiveToolDefinition(
+    equippedToolId,
+    equipmentVariants,
+  )
+  const equippedToolRarity = getEquipmentRarity(
+    equippedToolId,
+    equipmentVariants,
+  )
   const equippedToolDurability = getEquipmentDurability(
     equippedToolId,
     equipmentDurability,
+    equipmentVariants,
   )
   const armorRating = getPlayerArmorRating(
     equippedItems,
     equipmentDurability,
+    equipmentVariants,
   )
 
   return (
@@ -253,7 +267,10 @@ export function Hud() {
             </span>
           </div>
           <div className="player-vitals__loadout" title={combatMessage}>
-            <strong>{equippedTool.name}</strong>
+            <strong style={{ color: EQUIPMENT_RARITIES[equippedToolRarity].color }}>
+              [{EQUIPMENT_RARITIES[equippedToolRarity].name}]{' '}
+              {equippedTool.name}
+            </strong>
             {equippedTool.ammunitionItemId && (
               <span>
                 {ITEM_DEFINITIONS[equippedTool.ammunitionItemId].name}{' '}

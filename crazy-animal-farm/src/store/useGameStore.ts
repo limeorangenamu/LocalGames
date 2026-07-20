@@ -15,10 +15,16 @@ import {
 } from '../game/config/gameConstants'
 import { ANIMAL_DEFINITIONS } from '../game/data/animals'
 import { COMPANION_EQUIPMENT } from '../game/data/companionEquipment'
+import { TOOL_DEFINITIONS } from '../game/data/equipment'
 import {
-  getDefaultEquipmentDurability,
-  TOOL_DEFINITIONS,
-} from '../game/data/equipment'
+  canReplaceEquipmentVariant,
+  createEquipmentBlueprintId,
+  createEquipmentVariant,
+  getEffectiveToolDefinition,
+  getEquipmentBlueprintAmount,
+  getEquipmentMaxDurability,
+  getNextEquipmentBlueprintId,
+} from '../game/data/equipmentProgression'
 import { CRAFTING_RECIPES } from '../game/data/crafting'
 import {
   CAPTURE_SUPPORT_MODULES,
@@ -48,7 +54,12 @@ import type {
   CraftingStationId,
 } from '../game/types/crafting'
 import type {
+  CraftableEquipmentId,
+  EquipmentBlueprintId,
+  EquipmentBlueprintInventory,
   EquipmentDurability,
+  EquipmentRarity,
+  EquipmentVariants,
   EquippedItems,
   EquipmentSlotId,
   ToolDefinitionId,
@@ -134,6 +145,8 @@ type GameStore = {
   equippedToolId: ToolDefinitionId
   equippedItems: EquippedItems
   equipmentDurability: EquipmentDurability
+  equipmentVariants: EquipmentVariants
+  equipmentBlueprints: EquipmentBlueprintInventory
   combatMessage: string
   hotbarSlots: readonly HotbarSlot[]
   selectedHotbarIndex: number
@@ -193,6 +206,17 @@ type GameStore = {
   consumeInventoryItem: (item: InventoryItemKey, amount: number) => boolean
   consumeInventoryItems: (items: readonly ItemStack[]) => boolean
   unlockTool: (toolId: ToolDefinitionId) => boolean
+  craftEquipment: (
+    toolId: CraftableEquipmentId,
+    rarity: EquipmentRarity,
+  ) => boolean
+  addEquipmentBlueprint: (
+    blueprintId: EquipmentBlueprintId,
+    amount: number,
+  ) => void
+  synthesizeEquipmentBlueprint: (
+    blueprintId: EquipmentBlueprintId,
+  ) => EquipmentBlueprintId | null
   equipTool: (toolId: ToolDefinitionId) => boolean
   equipToolInSlot: (
     toolId: ToolDefinitionId,
@@ -317,6 +341,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   equippedToolId: 'bare-hands',
   equippedItems: {},
   equipmentDurability: {},
+  equipmentVariants: {},
+  equipmentBlueprints: {},
   combatMessage: '',
   hotbarSlots: createEmptyHotbarSlots(),
   selectedHotbarIndex: 0,
@@ -522,25 +548,108 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return true
   },
   unlockTool: (toolId) => {
-    if (get().ownedToolIds.includes(toolId)) {
+    if (toolId === 'bare-hands') {
       return false
     }
 
-    set((state) => {
-      const maxDurability = getDefaultEquipmentDurability(toolId)
+    return get().craftEquipment(toolId, 'common')
+  },
+  craftEquipment: (toolId, rarity) => {
+    const state = get()
+    const currentVariant = state.equipmentVariants[toolId]
 
-      return {
-        ownedToolIds: [...state.ownedToolIds, toolId],
-        equipmentDurability:
-          maxDurability === null
-            ? state.equipmentDurability
-            : {
-                ...state.equipmentDurability,
-                [toolId]: maxDurability,
-              },
-      }
+    if (
+      !canReplaceEquipmentVariant(currentVariant, rarity) ||
+      (rarity !== 'common' &&
+        getEquipmentBlueprintAmount(
+          state.equipmentBlueprints,
+          createEquipmentBlueprintId(toolId, rarity),
+        ) <= 0)
+    ) {
+      return false
+    }
+
+    const variant = createEquipmentVariant(toolId, rarity)
+    const equipmentVariants = {
+      ...state.equipmentVariants,
+      [toolId]: variant,
+    }
+    const maxDurability = getEquipmentMaxDurability(
+      toolId,
+      equipmentVariants,
+    )
+    const alreadyOwned = state.ownedToolIds.includes(toolId)
+    const shieldCapacity =
+      state.equippedItems.shield === toolId
+        ? getEffectiveToolDefinition(toolId, equipmentVariants)
+            .shieldCapacity ?? 0
+        : state.playerMaxShield
+
+    set({
+      ownedToolIds: alreadyOwned
+        ? state.ownedToolIds
+        : [...state.ownedToolIds, toolId],
+      equipmentVariants,
+      equipmentDurability:
+        maxDurability === null
+          ? state.equipmentDurability
+          : {
+              ...state.equipmentDurability,
+              [toolId]: maxDurability,
+            },
+      playerMaxShield: shieldCapacity,
+      playerShield:
+        state.equippedItems.shield === toolId
+          ? shieldCapacity
+          : state.playerShield,
     })
     return true
+  },
+  addEquipmentBlueprint: (blueprintId, amount) => {
+    const safeAmount = Math.max(0, Math.floor(amount))
+
+    if (safeAmount === 0) {
+      return
+    }
+
+    set((state) => ({
+      equipmentBlueprints: {
+        ...state.equipmentBlueprints,
+        [blueprintId]:
+          getEquipmentBlueprintAmount(
+            state.equipmentBlueprints,
+            blueprintId,
+          ) + safeAmount,
+      },
+    }))
+  },
+  synthesizeEquipmentBlueprint: (blueprintId) => {
+    const state = get()
+    const nextBlueprintId = getNextEquipmentBlueprintId(blueprintId)
+
+    if (
+      !nextBlueprintId ||
+      getEquipmentBlueprintAmount(state.equipmentBlueprints, blueprintId) < 3
+    ) {
+      return null
+    }
+
+    set({
+      equipmentBlueprints: {
+        ...state.equipmentBlueprints,
+        [blueprintId]:
+          getEquipmentBlueprintAmount(
+            state.equipmentBlueprints,
+            blueprintId,
+          ) - 3,
+        [nextBlueprintId]:
+          getEquipmentBlueprintAmount(
+            state.equipmentBlueprints,
+            nextBlueprintId,
+          ) + 1,
+      },
+    })
+    return nextBlueprintId
   },
   equipTool: (toolId) => {
     if (!get().ownedToolIds.includes(toolId)) {
@@ -572,7 +681,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       TOOL_DEFINITIONS[toolId].equipmentSlot !== slotId ||
       (TOOL_DEFINITIONS[toolId].maxDurability !== undefined &&
         (currentState.equipmentDurability[toolId] ??
-          TOOL_DEFINITIONS[toolId].maxDurability ??
+          getEquipmentMaxDurability(
+            toolId,
+            currentState.equipmentVariants,
+          ) ??
           0) <= 0)
     ) {
       return false
@@ -585,7 +697,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set((state) => {
       const shieldCapacity =
         slotId === 'shield'
-          ? TOOL_DEFINITIONS[toolId].shieldCapacity ?? 0
+          ? getEffectiveToolDefinition(
+              toolId,
+              state.equipmentVariants,
+            ).shieldCapacity ?? 0
           : state.playerMaxShield
 
       return {
@@ -767,7 +882,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return true
   },
   damageEquipment: (toolId, amount) => {
-    const definition = TOOL_DEFINITIONS[toolId]
+    const definition = getEffectiveToolDefinition(
+      toolId,
+      get().equipmentVariants,
+    )
     const maxDurability = definition.maxDurability
     const currentState = get()
 
@@ -844,9 +962,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     )
   },
   repairEquipment: (toolId) => {
-    const definition = TOOL_DEFINITIONS[toolId]
+    const baseDefinition = TOOL_DEFINITIONS[toolId]
+    const definition = getEffectiveToolDefinition(
+      toolId,
+      get().equipmentVariants,
+    )
     const maxDurability = definition.maxDurability
-    const repairIngredients = definition.repairIngredients ?? []
+    const repairIngredients = baseDefinition.repairIngredients ?? []
     const currentState = get()
 
     if (
@@ -1475,7 +1597,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const ownedToolIds = [...save.player.ownedToolIds]
     const equippedShieldId = save.player.equippedItems.shield
     const equippedShieldCapacity = equippedShieldId
-      ? TOOL_DEFINITIONS[equippedShieldId].shieldCapacity ?? 0
+      ? getEffectiveToolDefinition(
+          equippedShieldId,
+          save.player.equipmentVariants ?? {},
+        ).shieldCapacity ?? 0
       : 0
     const savedMaxShield = equippedShieldCapacity
     const actionResourceProfile = getPlayerActionResourceProfile(
@@ -1546,6 +1671,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       equipmentDurability: {
         ...(save.player.equipmentDurability ?? {}),
       },
+      equipmentVariants: { ...(save.player.equipmentVariants ?? {}) },
+      equipmentBlueprints: { ...(save.player.equipmentBlueprints ?? {}) },
       combatMessage: '',
       hotbarSlots: save.player.hotbarSlots
         ? save.player.hotbarSlots.map((slot) => (slot ? { ...slot } : null))

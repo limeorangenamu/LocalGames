@@ -29,6 +29,10 @@ import {
 } from '../data/animalElements'
 import { TOOL_DEFINITIONS } from '../data/equipment'
 import {
+  getEffectiveToolDefinition,
+  getEquipmentBlueprintName,
+} from '../data/equipmentProgression'
+import {
   CAPTURE_SUPPORT_MODULES,
   CAPTURE_TOOL_DEFINITIONS,
   resolveActiveCaptureToolItemId,
@@ -59,6 +63,8 @@ import type {
   CaptureToolItemId,
 } from '../types/capture'
 import type {
+  EquipmentBlueprintDrop,
+  EquipmentVariants,
   EquippedItems,
   ToolDefinitionId,
 } from '../types/equipment'
@@ -116,6 +122,8 @@ export class WorldScene extends Phaser.Scene {
   private handledManualSaveRequestId = 0
   private lastEquippedToolId: ToolDefinitionId = 'bare-hands'
   private lastEquippedShieldId: ToolDefinitionId | null = null
+  private lastEquippedToolVariantSignature = ''
+  private lastEquippedShieldVariantSignature = ''
   private lastActionResourceEquipmentSignature = ''
   private requestedMapId: string | null = null
   private requestedEntryId: string | null = null
@@ -157,7 +165,12 @@ export class WorldScene extends Phaser.Scene {
       gameStore.playerMaxShield,
       gameStore.playerShield,
     )
-    this.player.equipTool(TOOL_DEFINITIONS[gameStore.equippedToolId])
+    this.player.equipTool(
+      getEffectiveToolDefinition(
+        gameStore.equippedToolId,
+        gameStore.equipmentVariants,
+      ),
+    )
     this.player.configureActionResources(
       getPlayerActionResourceProfile(
         gameStore.equippedToolId,
@@ -169,15 +182,25 @@ export class WorldScene extends Phaser.Scene {
       getPlayerArmorRating(
         gameStore.equippedItems,
         gameStore.equipmentDurability,
+        gameStore.equipmentVariants,
       ),
     )
     this.lastEquippedToolId = gameStore.equippedToolId
+    this.lastEquippedToolVariantSignature = JSON.stringify(
+      gameStore.equipmentVariants[gameStore.equippedToolId] ?? null,
+    )
     this.lastEquippedShieldId =
       gameStore.equippedItems.shield ?? null
+    this.lastEquippedShieldVariantSignature = JSON.stringify(
+      this.lastEquippedShieldId
+        ? gameStore.equipmentVariants[this.lastEquippedShieldId] ?? null
+        : null,
+    )
     this.lastActionResourceEquipmentSignature =
       this.getActionResourceEquipmentSignature(
         gameStore.equippedToolId,
         gameStore.equippedItems,
+        gameStore.equipmentVariants,
       )
     this.physics.add.collider(this.player, obstacles)
 
@@ -370,6 +393,8 @@ export class WorldScene extends Phaser.Scene {
     this.handledManualSaveRequestId = 0
     this.lastEquippedToolId = 'bare-hands'
     this.lastEquippedShieldId = null
+    this.lastEquippedToolVariantSignature = ''
+    this.lastEquippedShieldVariantSignature = ''
     this.lastActionResourceEquipmentSignature = ''
   }
 
@@ -507,6 +532,8 @@ export class WorldScene extends Phaser.Scene {
         equippedToolId: gameStore.equippedToolId,
         equippedItems: { ...gameStore.equippedItems },
         equipmentDurability: { ...gameStore.equipmentDurability },
+        equipmentVariants: { ...gameStore.equipmentVariants },
+        equipmentBlueprints: { ...gameStore.equipmentBlueprints },
         hotbarSlots: gameStore.hotbarSlots.map((slot) =>
           slot ? { ...slot } : null,
         ),
@@ -818,18 +845,46 @@ export class WorldScene extends Phaser.Scene {
 
     const gameStore = useGameStore.getState()
     const equippedToolId = gameStore.equippedToolId
+    const equippedToolVariantSignature = JSON.stringify(
+      gameStore.equipmentVariants[equippedToolId] ?? null,
+    )
 
-    if (equippedToolId !== this.lastEquippedToolId) {
+    if (
+      equippedToolId !== this.lastEquippedToolId ||
+      equippedToolVariantSignature !==
+        this.lastEquippedToolVariantSignature
+    ) {
       this.lastEquippedToolId = equippedToolId
-      this.player.equipTool(TOOL_DEFINITIONS[equippedToolId])
+      this.lastEquippedToolVariantSignature =
+        equippedToolVariantSignature
+      this.player.equipTool(
+        getEffectiveToolDefinition(
+          equippedToolId,
+          gameStore.equipmentVariants,
+        ),
+      )
     }
 
     const equippedShieldId = gameStore.equippedItems.shield ?? null
+    const equippedShieldVariantSignature = JSON.stringify(
+      equippedShieldId
+        ? gameStore.equipmentVariants[equippedShieldId] ?? null
+        : null,
+    )
 
-    if (equippedShieldId !== this.lastEquippedShieldId) {
+    if (
+      equippedShieldId !== this.lastEquippedShieldId ||
+      equippedShieldVariantSignature !==
+        this.lastEquippedShieldVariantSignature
+    ) {
       this.lastEquippedShieldId = equippedShieldId
+      this.lastEquippedShieldVariantSignature =
+        equippedShieldVariantSignature
       const shieldCapacity = equippedShieldId
-        ? TOOL_DEFINITIONS[equippedShieldId].shieldCapacity ?? 0
+        ? getEffectiveToolDefinition(
+            equippedShieldId,
+            gameStore.equipmentVariants,
+          ).shieldCapacity ?? 0
         : 0
 
       this.player.configureShield(shieldCapacity, gameStore.playerShield)
@@ -843,6 +898,7 @@ export class WorldScene extends Phaser.Scene {
       this.getActionResourceEquipmentSignature(
         equippedToolId,
         gameStore.equippedItems,
+        gameStore.equipmentVariants,
       )
 
     if (
@@ -861,6 +917,7 @@ export class WorldScene extends Phaser.Scene {
         getPlayerArmorRating(
           gameStore.equippedItems,
           gameStore.equipmentDurability,
+          gameStore.equipmentVariants,
         ),
       )
       this.syncPlayerActionResourceState()
@@ -870,13 +927,23 @@ export class WorldScene extends Phaser.Scene {
   private getActionResourceEquipmentSignature(
     equippedToolId: ToolDefinitionId,
     equippedItems: EquippedItems,
+    equipmentVariants: EquipmentVariants,
   ) {
     const equipmentEntries = Object.entries(equippedItems)
       .sort(([leftSlot], [rightSlot]) => leftSlot.localeCompare(rightSlot))
       .map(([slotId, toolId]) => `${slotId}:${toolId}`)
       .join('|')
 
-    return `${equippedToolId}|${equipmentEntries}`
+    const variantEntries = [
+      equippedToolId,
+      ...Object.values(equippedItems),
+    ]
+      .filter((toolId): toolId is ToolDefinitionId => toolId !== undefined)
+      .sort()
+      .map((toolId) => `${toolId}:${JSON.stringify(equipmentVariants[toolId] ?? null)}`)
+      .join('|')
+
+    return `${equippedToolId}|${equipmentEntries}|${variantEntries}`
   }
 
   private syncPlayerActionResourceState() {
@@ -1093,6 +1160,7 @@ export class WorldScene extends Phaser.Scene {
     }
 
     this.collectDrops(result.drops)
+    this.collectBlueprintDrops(result.blueprintDrops)
     gameStore.gainPlayerExperience(18)
     const growthEvents = gameStore.gainAnimalPartyExperience(
       26,
@@ -1721,7 +1789,10 @@ export class WorldScene extends Phaser.Scene {
 
     const gameStore = useGameStore.getState()
     const equippedToolId = gameStore.equippedToolId
-    const definition = TOOL_DEFINITIONS[equippedToolId]
+    const definition = getEffectiveToolDefinition(
+      equippedToolId,
+      gameStore.equipmentVariants,
+    )
     const ammunitionItemId = this.player.getAmmunitionItemId()
 
     if (!ammunitionItemId || gameStore.inventory[ammunitionItemId] <= 0) {
@@ -1818,6 +1889,7 @@ export class WorldScene extends Phaser.Scene {
     attackResult: AnimalAttackResult | null,
   ) {
     this.collectDrops(attackResult?.drops ?? [])
+    this.collectBlueprintDrops(attackResult?.blueprintDrops ?? [])
 
     if (attackResult?.defeated) {
       const gameStore = useGameStore.getState()
@@ -2043,6 +2115,7 @@ export class WorldScene extends Phaser.Scene {
           gameStore.addCapturedAnimal(result.capturedAnimal)
           gameStore.gainPlayerExperience(32)
           this.collectDrops(result.drops)
+          this.collectBlueprintDrops(result.blueprintDrops)
           gameStore.setCaptureMessage(
             `포획 성공! ${result.capturedAnimal.name} · ${CAPTURE_TOOL_DEFINITIONS[capsule.toolItemId].gradeName} 캡슐 · ${this.formatChance(result.chance)}`,
           )
@@ -2232,6 +2305,28 @@ export class WorldScene extends Phaser.Scene {
     drops.forEach((drop) => {
       gameStore.addInventoryItem(drop.item, drop.amount)
     })
+  }
+
+  private collectBlueprintDrops(
+    drops: readonly EquipmentBlueprintDrop[],
+  ) {
+    if (drops.length === 0) {
+      return
+    }
+
+    const gameStore = useGameStore.getState()
+
+    drops.forEach((drop) => {
+      gameStore.addEquipmentBlueprint(drop.blueprintId, drop.amount)
+    })
+    gameStore.setCombatMessage(
+      `${drops
+        .map(
+          (drop) =>
+            `${getEquipmentBlueprintName(drop.blueprintId)} ${drop.amount}개`,
+        )
+        .join(', ')} 획득`,
+    )
   }
 
   private formatChance(chance: number) {

@@ -28,6 +28,12 @@ import {
   isToolDefinitionId,
   TOOL_DEFINITIONS,
 } from '../data/equipment'
+import {
+  createEquipmentVariant,
+  getEquipmentMaxDurability,
+  isEquipmentBlueprintId,
+  isEquipmentRarity,
+} from '../data/equipmentProgression'
 import { ITEM_DEFINITIONS } from '../data/items'
 import { getMapDefinition, isMapId } from '../data/maps'
 import type {
@@ -50,6 +56,10 @@ import type {
 import type { PlacedBuilding } from '../types/building'
 import type { InventoryItemKey } from '../types/item'
 import type {
+  CraftableEquipmentId,
+  EquipmentBlueprintId,
+  EquipmentVariant,
+  EquipmentVariants,
   EquippedItems,
   EquipmentSlotId,
   ToolDefinitionId,
@@ -80,10 +90,11 @@ const LEGACY_V6_STORAGE_PREFIX = 'crazy-animal-farm.save.v6.'
 const LEGACY_V7_STORAGE_PREFIX = 'crazy-animal-farm.save.v7.'
 const LEGACY_V8_STORAGE_PREFIX = 'crazy-animal-farm.save.v8.'
 const LEGACY_V9_STORAGE_PREFIX = 'crazy-animal-farm.save.v9.'
-const SAVE_STORAGE_PREFIX = 'crazy-animal-farm.save.v10.'
+const LEGACY_V10_STORAGE_PREFIX = 'crazy-animal-farm.save.v10.'
+const SAVE_STORAGE_PREFIX = 'crazy-animal-farm.save.v11.'
 const PENDING_LOAD_SLOT_STORAGE_KEY =
   'crazy-animal-farm.pending-load-slot'
-const SAVE_VERSION = 10
+const SAVE_VERSION = 11
 let activeLoadSlotId: SaveSlotId = 'auto'
 type SaveSource = Readonly<{
   key: string
@@ -190,6 +201,11 @@ export class SaveService {
           shouldMigrateToSlot: false,
         },
         {
+          key: getLegacyV10SlotStorageKey(slotId),
+          value: localStorage.getItem(getLegacyV10SlotStorageKey(slotId)),
+          shouldMigrateToSlot: true,
+        },
+        {
           key: getLegacyV9SlotStorageKey(slotId),
           value: localStorage.getItem(getLegacyV9SlotStorageKey(slotId)),
           shouldMigrateToSlot: true,
@@ -274,6 +290,7 @@ export class SaveService {
       }
 
       if (saveSource.shouldMigrateToSlot) {
+        this.discardInvalidSave(getLegacyV10SlotStorageKey(slotId))
         this.discardInvalidSave(getLegacyV9SlotStorageKey(slotId))
         this.discardInvalidSave(getLegacyV8SlotStorageKey(slotId))
         this.discardInvalidSave(getLegacyV7SlotStorageKey(slotId))
@@ -331,6 +348,7 @@ export class SaveService {
   deleteSlot(slotId: SaveSlotId) {
     try {
       localStorage.removeItem(getSlotStorageKey(slotId))
+      localStorage.removeItem(getLegacyV10SlotStorageKey(slotId))
       localStorage.removeItem(getLegacyV9SlotStorageKey(slotId))
       localStorage.removeItem(getLegacyV8SlotStorageKey(slotId))
       localStorage.removeItem(getLegacyV7SlotStorageKey(slotId))
@@ -374,6 +392,10 @@ function isSaveSlotId(value: string): value is SaveSlotId {
 
 function getSlotStorageKey(slotId: SaveSlotId) {
   return `${SAVE_STORAGE_PREFIX}${slotId}`
+}
+
+function getLegacyV10SlotStorageKey(slotId: SaveSlotId) {
+  return `${LEGACY_V10_STORAGE_PREFIX}${slotId}`
 }
 
 function getLegacyV6SlotStorageKey(slotId: SaveSlotId) {
@@ -587,9 +609,12 @@ function isPlayerSaveData(value: unknown) {
       value.ownedToolIds,
       value.equippedToolId,
     ) ||
+    !isEquipmentVariants(value.equipmentVariants, value.ownedToolIds) ||
+    !isEquipmentBlueprintInventory(value.equipmentBlueprints) ||
     !isEquipmentDurability(
       value.equipmentDurability,
       value.ownedToolIds,
+      value.equipmentVariants,
     ) ||
     (value.hotbarSlots !== undefined &&
       !isHotbarSlots(value.hotbarSlots, value.ownedToolIds)) ||
@@ -640,7 +665,8 @@ function migrateLegacySave(value: unknown): unknown {
       value.version !== 6 &&
       value.version !== 7 &&
       value.version !== 8 &&
-      value.version !== 9) ||
+      value.version !== 9 &&
+      value.version !== 10) ||
     !isRecord(value.player)
   ) {
     return value
@@ -657,7 +683,8 @@ function migrateLegacySave(value: unknown): unknown {
     value.version === 6 ||
     value.version === 7 ||
     value.version === 8 ||
-    value.version === 9
+    value.version === 9 ||
+    value.version === 10
     ? value.player.equippedItems
     : typeof equippedToolId === 'string' &&
         isToolDefinitionId(equippedToolId) &&
@@ -694,19 +721,24 @@ function migrateLegacySave(value: unknown): unknown {
         value.version === 6 ||
         value.version === 7 ||
         value.version === 8 ||
-        value.version === 9
+        value.version === 9 ||
+        value.version === 10
           ? isFiniteNumber(value.player.hunger)
             ? value.player.hunger
             : PLAYER_MAX_HUNGER
           : PLAYER_MAX_HUNGER,
       capturePower:
-        value.version === 8 || value.version === 9
+        value.version === 8 ||
+        value.version === 9 ||
+        value.version === 10
           ? value.player.capturePower
           : getDefaultPlayerCapturePower(
               isFiniteNumber(value.player.level) ? value.player.level : 1,
             ),
       equippedCaptureSupportModuleId:
-        value.version === 8 || value.version === 9
+        value.version === 8 ||
+        value.version === 9 ||
+        value.version === 10
           ? value.player.equippedCaptureSupportModuleId
           : null,
     },
@@ -746,10 +778,15 @@ function normalizeSaveForCurrentContent(value: unknown): unknown {
   const playerWithActionResources = addMissingPlayerActionResources(
     playerWithCapture,
   )
+  const playerWithEquipmentProgression = addMissingEquipmentProgression(
+    playerWithActionResources,
+  )
 
   return {
     ...value,
-    player: addMissingEquipmentDurability(playerWithActionResources),
+    player: addMissingEquipmentDurability(
+      playerWithEquipmentProgression,
+    ),
     capturedAnimals,
     inventory: addMissingItemSlots(value.inventory),
     bases: Array.isArray(value.bases)
@@ -774,13 +811,19 @@ function addMissingEquipmentDurability(playerValue: unknown): unknown {
     ? savedEquipmentDurability
     : {}
   const equipmentDurability: Partial<Record<ToolDefinitionId, number>> = {}
+  const equipmentVariants = isRecord(playerValue.equipmentVariants)
+    ? (playerValue.equipmentVariants as EquipmentVariants)
+    : {}
 
   playerValue.ownedToolIds.forEach((toolId) => {
     if (typeof toolId !== 'string' || !isToolDefinitionId(toolId)) {
       return
     }
 
-    const maxDurability = getDefaultEquipmentDurability(toolId)
+    const maxDurability = getEquipmentMaxDurability(
+      toolId,
+      equipmentVariants,
+    )
 
     if (maxDurability === null) {
       return
@@ -796,6 +839,60 @@ function addMissingEquipmentDurability(playerValue: unknown): unknown {
   return {
     ...playerValue,
     equipmentDurability,
+  }
+}
+
+function addMissingEquipmentProgression(playerValue: unknown): unknown {
+  if (!isRecord(playerValue) || !Array.isArray(playerValue.ownedToolIds)) {
+    return playerValue
+  }
+
+  const savedVariants = isRecord(playerValue.equipmentVariants)
+    ? playerValue.equipmentVariants
+    : {}
+  const equipmentVariants: Partial<
+    Record<ToolDefinitionId, EquipmentVariant>
+  > = {}
+
+  playerValue.ownedToolIds.forEach((toolId) => {
+    if (
+      typeof toolId !== 'string' ||
+      !isToolDefinitionId(toolId) ||
+      toolId === 'bare-hands'
+    ) {
+      return
+    }
+
+    const savedVariant = savedVariants[toolId]
+
+    equipmentVariants[toolId] = isEquipmentVariant(
+      savedVariant,
+      toolId,
+    )
+      ? savedVariant
+      : createEquipmentVariant(toolId, 'common', () => 0)
+  })
+
+  const equipmentBlueprints: Partial<Record<EquipmentBlueprintId, number>> = {}
+
+  if (isRecord(playerValue.equipmentBlueprints)) {
+    Object.entries(playerValue.equipmentBlueprints).forEach(
+      ([blueprintId, amount]) => {
+        if (
+          isEquipmentBlueprintId(blueprintId) &&
+          Number.isInteger(amount) &&
+          (amount as number) >= 0
+        ) {
+          equipmentBlueprints[blueprintId] = amount as number
+        }
+      },
+    )
+  }
+
+  return {
+    ...playerValue,
+    equipmentVariants,
+    equipmentBlueprints,
   }
 }
 
@@ -1263,6 +1360,7 @@ function isEquippedItems(
 function isEquipmentDurability(
   value: unknown,
   ownedToolIds: readonly string[],
+  equipmentVariantsValue: unknown,
 ) {
   if (!isRecord(value)) {
     return false
@@ -1273,6 +1371,9 @@ function isEquipmentDurability(
       isToolDefinitionId(toolId) &&
       getDefaultEquipmentDurability(toolId) !== null,
   )
+  const equipmentVariants = isRecord(equipmentVariantsValue)
+    ? (equipmentVariantsValue as EquipmentVariants)
+    : {}
 
   return (
     Object.entries(value).every(([toolId, durability]) => {
@@ -1283,7 +1384,10 @@ function isEquipmentDurability(
         return false
       }
 
-      const maxDurability = getDefaultEquipmentDurability(toolId)
+      const maxDurability = getEquipmentMaxDurability(
+        toolId,
+        equipmentVariants,
+      )
 
       return (
         maxDurability !== null &&
@@ -1296,6 +1400,63 @@ function isEquipmentDurability(
       Object.prototype.hasOwnProperty.call(value, toolId),
     )
   )
+}
+
+function isEquipmentVariants(
+  value: unknown,
+  ownedToolIds: readonly string[],
+): value is EquipmentVariants {
+  if (!isRecord(value)) {
+    return false
+  }
+
+  const ownedCraftableToolIds = ownedToolIds.filter(
+    (toolId): toolId is CraftableEquipmentId =>
+      toolId !== 'bare-hands' && isToolDefinitionId(toolId),
+  )
+
+  return (
+    Object.entries(value).every(([toolId, variant]) =>
+      isToolDefinitionId(toolId) &&
+      toolId !== 'bare-hands' &&
+      ownedToolIds.includes(toolId) &&
+      isEquipmentVariant(variant, toolId),
+    ) &&
+    ownedCraftableToolIds.every((toolId) =>
+      Object.prototype.hasOwnProperty.call(value, toolId),
+    )
+  )
+}
+
+function isEquipmentVariant(
+  value: unknown,
+  toolId: CraftableEquipmentId,
+): value is EquipmentVariant {
+  return (
+    isRecord(value) &&
+    value.toolId === toolId &&
+    typeof value.rarity === 'string' &&
+    isEquipmentRarity(value.rarity) &&
+    isEquipmentStatMultiplier(value.powerMultiplier) &&
+    isEquipmentStatMultiplier(value.protectionMultiplier) &&
+    isEquipmentStatMultiplier(value.durabilityMultiplier)
+  )
+}
+
+function isEquipmentBlueprintInventory(value: unknown) {
+  return (
+    isRecord(value) &&
+    Object.entries(value).every(
+      ([blueprintId, amount]) =>
+        isEquipmentBlueprintId(blueprintId) &&
+        Number.isInteger(amount) &&
+        (amount as number) >= 0,
+    )
+  )
+}
+
+function isEquipmentStatMultiplier(value: unknown) {
+  return isFiniteNumber(value) && value >= 0.5 && value <= 3
 }
 
 function isHotbarSlots(

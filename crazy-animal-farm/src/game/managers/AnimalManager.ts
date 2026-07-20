@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { CAPTURE_PROJECTILE_RADIUS } from '../config/gameConstants'
 import { getElementEffectiveness } from '../data/animalElements'
 import { ANIMAL_DEFINITIONS } from '../data/animals'
+import { rollEquipmentBlueprintLoot } from '../data/equipmentProgression'
 import { Animal } from '../entities/Animal'
 import type { Player } from '../entities/Player'
 import type {
@@ -10,6 +11,7 @@ import type {
   AnimalTargetStatusEffectId,
   CapturedAnimal,
 } from '../types/animal'
+import type { EquipmentBlueprintDrop } from '../types/equipment'
 import type { ItemStack } from '../types/item'
 import type { WorldPoint } from '../types/map'
 import { createCapturedAnimalInstance } from '../utils/animalInstance'
@@ -24,6 +26,7 @@ export type AnimalAttackResult = Readonly<{
   remainingHp: number
   defeated: boolean
   drops: readonly ItemStack[]
+  blueprintDrops: readonly EquipmentBlueprintDrop[]
   effectivenessMultiplier: number
   appliedStatusEffectId: AnimalTargetStatusEffectId | null
 }>
@@ -42,6 +45,7 @@ export type CaptureAttemptResult = Readonly<{
   chance: number
   capturedAnimal: CapturedAnimal | null
   drops: readonly ItemStack[]
+  blueprintDrops: readonly EquipmentBlueprintDrop[]
 }>
 
 export class AnimalManager {
@@ -245,12 +249,18 @@ export class AnimalManager {
     const drops = result.defeated
       ? rollLootTable(target.definition.lootTables.defeated)
       : []
+    const blueprintDrops = result.defeated
+      ? rollEquipmentBlueprintLoot(
+          target.definition.blueprintLootTables.defeated,
+        )
+      : []
 
     return {
       targetId: target.spawnPointId,
       remainingHp: result.remainingHp,
       defeated: result.defeated,
       drops,
+      blueprintDrops,
       effectivenessMultiplier,
       appliedStatusEffectId,
     }
@@ -273,6 +283,7 @@ export class AnimalManager {
         chance: safeChance,
         capturedAnimal: null,
         drops: [],
+        blueprintDrops: [],
       }
     }
 
@@ -293,6 +304,10 @@ export class AnimalManager {
       chance: safeChance,
       capturedAnimal,
       drops: rollLootTable(target.definition.lootTables.captured),
+      blueprintDrops: rollEquipmentBlueprintLoot(
+        target.definition.blueprintLootTables.captured,
+        random,
+      ),
     }
   }
 }

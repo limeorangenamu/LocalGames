@@ -17,6 +17,14 @@ import {
   getCaptureSupportModuleByItemId,
 } from '../game/data/capture'
 import { TOOL_DEFINITIONS } from '../game/data/equipment'
+import {
+  EQUIPMENT_RARITIES,
+  getEffectiveToolDefinition,
+  getEquipmentBlueprintName,
+  getEquipmentMaxDurability,
+  getEquipmentRarity,
+  isEquipmentBlueprintId,
+} from '../game/data/equipmentProgression'
 import { ITEM_DEFINITIONS } from '../game/data/items'
 import {
   SAVE_SLOT_DEFINITIONS,
@@ -29,7 +37,9 @@ import type {
 } from '../game/types/animal'
 import type { CraftingRecipeId } from '../game/types/crafting'
 import type {
+  EquipmentBlueprintId,
   EquipmentSlotId,
+  EquipmentVariants,
   ToolDefinitionId,
 } from '../game/types/equipment'
 import type { HotbarAssignment, HotbarSlot } from '../game/types/hotbar'
@@ -388,6 +398,10 @@ function InventoryPanel() {
   const equipmentDurability = useGameStore(
     (state) => state.equipmentDurability,
   )
+  const equipmentVariants = useGameStore((state) => state.equipmentVariants)
+  const equipmentBlueprints = useGameStore(
+    (state) => state.equipmentBlueprints,
+  )
   const equipToolInSlot = useGameStore((state) => state.equipToolInSlot)
   const unequipItem = useGameStore((state) => state.unequipItem)
   const repairEquipment = useGameStore((state) => state.repairEquipment)
@@ -419,6 +433,13 @@ function InventoryPanel() {
   const armorRating = getPlayerArmorRating(
     equippedItems,
     equipmentDurability,
+    equipmentVariants,
+  )
+  const blueprintEntries = Object.entries(equipmentBlueprints).filter(
+    (entry): entry is [EquipmentBlueprintId, number] =>
+      isEquipmentBlueprintId(entry[0]) &&
+      typeof entry[1] === 'number' &&
+      entry[1] > 0,
   )
   const entries: InventoryEntry[] = [
     ...Object.values(ITEM_DEFINITIONS)
@@ -437,7 +458,7 @@ function InventoryPanel() {
       .map((toolId) => ({
         kind: 'tool' as const,
         id: toolId,
-        name: TOOL_DEFINITIONS[toolId].name,
+        name: `${EQUIPMENT_RARITIES[getEquipmentRarity(toolId, equipmentVariants)].name} ${TOOL_DEFINITIONS[toolId].name}`,
         amount: 1,
       })),
   ]
@@ -527,13 +548,16 @@ function InventoryPanel() {
 
   const handleRepairEquipment = (toolId: ToolDefinitionId) => {
     const definition = TOOL_DEFINITIONS[toolId]
-    const maxDurability = definition.maxDurability
+    const maxDurability = getEquipmentMaxDurability(
+      toolId,
+      equipmentVariants,
+    )
     const currentDurability =
       equipmentDurability[toolId] ?? maxDurability
 
     if (
-      maxDurability === undefined ||
-      currentDurability === undefined ||
+      maxDurability === null ||
+      currentDurability === null ||
       currentDurability >= maxDurability
     ) {
       setInventoryMessage('현재 장비는 수리할 필요가 없습니다.')
@@ -594,7 +618,11 @@ function InventoryPanel() {
               <div
                 key={index}
                 className={`inventory-slot${entry ? ' is-filled' : ''}`}
-                title={entry?.name}
+                title={
+                  entry?.kind === 'tool'
+                    ? `${entry.name}\n${getEquipmentStatSummary(entry.id, equipmentVariants)}`
+                    : entry?.name
+                }
                 draggable={Boolean(entry)}
                 onDragStart={(event) => {
                   if (!entry) {
@@ -621,26 +649,60 @@ function InventoryPanel() {
                         ? getEquipmentIcon(entry.id)
                         : getItemIcon(entry.id)}
                     </span>
-                    <span className="inventory-slot__name">{entry.name}</span>
+                    <span
+                      className="inventory-slot__name"
+                      style={
+                        entry.kind === 'tool'
+                          ? {
+                              color:
+                                EQUIPMENT_RARITIES[
+                                  getEquipmentRarity(
+                                    entry.id,
+                                    equipmentVariants,
+                                  )
+                                ].color,
+                            }
+                          : undefined
+                      }
+                    >
+                      {entry.name}
+                    </span>
                     {entry.amount > 1 && (
                       <strong className="inventory-slot__amount">{entry.amount}</strong>
                     )}
                     {entry.kind === 'tool' &&
-                      TOOL_DEFINITIONS[entry.id].maxDurability !==
-                        undefined && (
+                      getEquipmentMaxDurability(
+                        entry.id,
+                        equipmentVariants,
+                      ) !== null && (
                         <span className="inventory-slot__durability">
                           {equipmentDurability[entry.id] ??
-                            TOOL_DEFINITIONS[entry.id].maxDurability} /{' '}
-                          {TOOL_DEFINITIONS[entry.id].maxDurability}
+                            getEquipmentMaxDurability(
+                              entry.id,
+                              equipmentVariants,
+                            )}{' '}
+                          /{' '}
+                          {getEquipmentMaxDurability(
+                            entry.id,
+                            equipmentVariants,
+                          )}
                         </span>
                       )}
                     {entry.kind === 'tool' &&
-                      TOOL_DEFINITIONS[entry.id].maxDurability !==
-                        undefined &&
+                      getEquipmentMaxDurability(
+                        entry.id,
+                        equipmentVariants,
+                      ) !== null &&
                       (equipmentDurability[entry.id] ??
-                        TOOL_DEFINITIONS[entry.id].maxDurability ??
+                        getEquipmentMaxDurability(
+                          entry.id,
+                          equipmentVariants,
+                        ) ??
                         0) <
-                        (TOOL_DEFINITIONS[entry.id].maxDurability ?? 0) && (
+                        (getEquipmentMaxDurability(
+                          entry.id,
+                          equipmentVariants,
+                        ) ?? 0) && (
                         <button
                           type="button"
                           className="inventory-slot__action"
@@ -679,6 +741,24 @@ function InventoryPanel() {
             ))}
           </div>
         </div>
+        <section className="equipment-blueprints" aria-label="보유 장비 설계도">
+          <div>
+            <strong>장비 설계도</strong>
+            <span>{blueprintEntries.length}종</span>
+          </div>
+          {blueprintEntries.length > 0 ? (
+            <ul>
+              {blueprintEntries.map(([blueprintId, amount]) => (
+                <li key={blueprintId}>
+                  <span>📜 {getEquipmentBlueprintName(blueprintId)}</span>
+                  <strong>{amount}장</strong>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>동물 사냥·포획 전리품에서 설계도를 획득할 수 있습니다.</p>
+          )}
+        </section>
         {inventoryMessage && (
           <p className="inventory-panel__feedback">{inventoryMessage}</p>
         )}
@@ -738,10 +818,16 @@ function InventoryPanel() {
           <div className="equipment-slot-list">
             {EQUIPMENT_SLOTS.map((slot) => {
               const toolId = equippedItems[slot.id]
-              const definition = toolId ? TOOL_DEFINITIONS[toolId] : null
+              const definition = toolId
+                ? getEffectiveToolDefinition(toolId, equipmentVariants)
+                : null
+              const rarity = toolId
+                ? getEquipmentRarity(toolId, equipmentVariants)
+                : null
               const durability = toolId
                 ? equipmentDurability[toolId] ??
-                  TOOL_DEFINITIONS[toolId].maxDurability
+                  getEquipmentMaxDurability(toolId, equipmentVariants) ??
+                  undefined
                 : undefined
 
               return (
@@ -757,7 +843,7 @@ function InventoryPanel() {
                       <button
                         type="button"
                         draggable
-                        title="인벤토리로 드래그하여 해제"
+                        title={`인벤토리로 드래그하여 해제\n${getEquipmentStatSummary(toolId, equipmentVariants)}`}
                         onDragStart={(event) =>
                           writeEquipmentPayload(event, {
                             toolId,
@@ -766,8 +852,23 @@ function InventoryPanel() {
                           })
                         }
                       >
-                        {getEquipmentIcon(toolId)} {definition?.name}
+                        {getEquipmentIcon(toolId)}{' '}
+                        <span
+                          style={{
+                            color: rarity
+                              ? EQUIPMENT_RARITIES[rarity].color
+                              : undefined,
+                          }}
+                        >
+                          {rarity
+                            ? `[${EQUIPMENT_RARITIES[rarity].name}] `
+                            : ''}
+                          {definition?.name}
+                        </span>
                       </button>
+                      <small className="equipment-slot__stats">
+                        {getEquipmentStatSummary(toolId, equipmentVariants)}
+                      </small>
                       {definition?.maxDurability !== undefined && (
                         <small className="equipment-slot__durability">
                           내구도 {durability ?? 0} / {definition.maxDurability}
@@ -2023,6 +2124,36 @@ function getCraftingCategoryLabel(
     case 'food':
       return '음식'
   }
+}
+
+function getEquipmentStatSummary(
+  toolId: ToolDefinitionId,
+  equipmentVariants: EquipmentVariants,
+) {
+  const definition = getEffectiveToolDefinition(toolId, equipmentVariants)
+  const stats: string[] = []
+
+  if (definition.weaponDamage !== undefined) {
+    stats.push(`공격 ${definition.weaponDamage}`)
+  }
+
+  if (definition.armorRating !== undefined) {
+    stats.push(`방어 ${definition.armorRating}`)
+  }
+
+  if (definition.shieldCapacity !== undefined) {
+    stats.push(`쉴드 ${definition.shieldCapacity}`)
+  }
+
+  if (definition.resourceDamageMultiplier > 1) {
+    stats.push(`채집 x${definition.resourceDamageMultiplier.toFixed(2)}`)
+  }
+
+  if (definition.maxDurability !== undefined) {
+    stats.push(`최대 내구도 ${definition.maxDurability}`)
+  }
+
+  return stats.join(' · ') || '추가 능력치 없음'
 }
 
 function getSaveSummaryText(save: GameSave) {

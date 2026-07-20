@@ -17,6 +17,7 @@ import type {
   CompanionCommandMode,
 } from '../types/animal'
 import type { ItemStack } from '../types/item'
+import type { EquipmentBlueprintDrop } from '../types/equipment'
 import type { WorldPoint } from '../types/map'
 import type { AnimalManager } from './AnimalManager'
 
@@ -24,6 +25,7 @@ export type CompanionAttackResult = Readonly<{
   defeated: boolean
   targetName: string
   drops: readonly ItemStack[]
+  blueprintDrops: readonly EquipmentBlueprintDrop[]
   counterAttackDamage: number
   counterAttackEvaded: boolean
   skillId: AnimalActiveSkillId | null
@@ -204,6 +206,7 @@ export class CompanionManager {
       defeated: result.defeated,
       targetName,
       drops: result.drops,
+      blueprintDrops: result.blueprintDrops,
       counterAttackDamage,
       counterAttackEvaded: counterResolution.evaded,
       skillId: combatAction.skillId,
