@@ -497,6 +497,7 @@ button.danger {
   margin: 0 auto;
   padding: 24px;
   padding-bottom: 250px;
+  container-type: inline-size;
 }
 
 .panel {
@@ -1527,85 +1528,16 @@ button.danger {
   justify-content: flex-end;
 }
 
-@media (max-width: 900px) {
-  .topbar {
-    grid-template-columns: 1fr;
-    padding: 16px 14px 0;
-  }
-
-  .profile {
-    grid-template-columns: minmax(0, 1fr) 72px;
-    width: 100%;
-  }
-
-  .gold-badge {
-    grid-column: 1 / -1;
-  }
-
-  #nicknameText {
-    width: auto;
-  }
-
-  .section-head,
-  .room-head {
-    grid-template-columns: minmax(0, 1fr) 104px;
-  }
-
-  .game-type-panel {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .lobby-view,
-  .shop-view,
+/* Keep the game controls and board side by side on narrow desktop windows. */
+@media (max-width: 1180px) {
   .app {
+    grid-template-columns: clamp(220px, 28cqw, 340px) minmax(0, 1fr);
+    gap: 14px;
     padding: 14px;
-    padding-bottom: 430px;
-  }
-
-  .app {
-    grid-template-columns: 1fr;
-  }
-
-  .panel {
-    order: 2;
-  }
-
-  .board-wrap {
-    order: 1;
+    padding-bottom: 250px;
   }
 
   .board {
-    --cell: min(6vw, 38px);
-  }
-
-  .janggi-board {
-    --cell: min(9vw, 48px);
-  }
-
-  .chess-board {
-    --cell: min(11vw, 48px);
-  }
-
-  .chat {
-    left: 14px;
-    right: 14px;
-    bottom: 14px;
-    width: auto;
-  }
-
-  .spectator-panel {
-    left: 14px;
-    right: 14px;
-    bottom: 228px;
-    width: auto;
-    max-height: 170px;
-  }
-
-  .skin-create-form {
-    grid-template-columns: 1fr;
-  }
-
-  .effect-create-form {
-    grid-template-columns: 1fr;
+    --cell: min(5.2vw, 42px, calc((100cqw - clamp(220px, 28cqw, 340px) - 34px) * 0.0629));
   }
 }

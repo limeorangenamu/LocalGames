@@ -1,3 +1,7 @@
 node_modules/
 .env
 .DS_Store
+
+# Portfolio presentation artifacts
+presentation-build/
+omok_multiboard_portfolio*

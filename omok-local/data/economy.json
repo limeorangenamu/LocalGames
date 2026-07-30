@@ -432,6 +432,18 @@
       "gold": 0,
       "inventory": [],
       "equipped": {}
+    },
+    "우차딜러": {
+      "name": "우차딜러",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
+    },
+    "이규훈": {
+      "name": "이규훈",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
     }
   },
   "skins": [
