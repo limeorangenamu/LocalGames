@@ -12,15 +12,10 @@
       <p class="eyebrow">환영합니다. 즐거운 시간 보내세요!</p>
       <div class="brand-row">
         <h1>오목·장기·체스·알까기</h1>
-        <button id="shopOpenBtn" class="shop-open-btn" type="button" title="상점" aria-label="상점" hidden>상점</button>
         <button id="inventoryOpenBtn" class="shop-open-btn" type="button" title="보관함" aria-label="보관함">보관함</button>
       </div>
     </div>
     <div class="profile">
-      <span class="gold-badge" aria-label="보유 골드" hidden>
-        <span class="gold-icon"></span>
-        <strong id="goldAmount">0G</strong>
-      </span>
       <span id="nicknameText">손님</span>
       <button id="editNicknameBtn" type="button">수정</button>
     </div>
@@ -30,7 +25,7 @@
     <section class="rooms-panel">
       <div class="section-head">
         <div>
-          <h2>게임방</h2>
+          <h2>방 목록</h2>
           <p id="lobbyInfo">방을 만들거나 입장하세요.</p>
         </div>
         <button id="createRoomBtn" type="button">방 만들기</button>
@@ -96,6 +91,12 @@
         <button id="passTurnBtn" type="button" class="fit-text" hidden>한 수 쉼</button>
         <button id="resignBtn" type="button" class="fit-text" hidden>기권</button>
       </div>
+
+      <aside id="spectatorPanel" class="spectator-panel" hidden>
+        <h3>관전자</h3>
+        <ul id="spectatorList"></ul>
+        <button id="joinSpectatorBtn" type="button" class="ghost fit-text">관전자로 참가</button>
+      </aside>
     </section>
 
     <section class="board-wrap">
@@ -104,28 +105,26 @@
     </section>
   </main>
 
-  <main id="shopView" class="shop-view" hidden>
+  <main id="inventoryView" class="shop-view" hidden>
     <section class="shop-panel">
       <div class="section-head">
         <div>
-          <h2>상점</h2>
-          <p id="shopInfo">알까기 말 스킨과 이동 효과 스킨을 둘러보세요.</p>
+          <h2>보관함</h2>
+          <p id="inventoryInfo">보유한 알까기 스킨을 확인하고 장착하세요.</p>
         </div>
-        <button id="shopBackBtn" type="button" class="ghost fit-text">돌아가기</button>
+        <button id="inventoryBackBtn" type="button" class="ghost fit-text">돌아가기</button>
       </div>
 
-      <section id="shopAdminPanel" class="shop-admin-panel" hidden>
-        <h3>상점 관리자</h3>
-        <p>닉네임이 정확히 서버장인 사용자만 알까기 말 스킨과 이동 효과 스킨을 등록할 수 있습니다.</p>
+      <section id="skinCreatorPanel" class="skin-creator-panel" hidden>
+        <h3>개인 스킨 제작</h3>
+        <p>첫번째 줄 :: 알까기 말 스킨 제작툴 // 두번째 줄 :: 알까기 말 이동 효과 제작툴</p>
         <form id="skinCreateForm" class="skin-create-form">
           <input id="skinNameInput" maxlength="32" placeholder="스킨 이름" autocomplete="off" />
-          <input id="skinPriceInput" type="number" min="0" max="999999" step="1" placeholder="가격" />
           <input id="skinImageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
-          <button type="submit" class="fit-text">상점에 등록</button>
+          <button type="submit" class="fit-text">말 스킨 만들기</button>
         </form>
         <form id="effectCreateForm" class="effect-create-form">
           <input id="effectNameInput" maxlength="32" placeholder="효과 스킨 이름" autocomplete="off" />
-          <input id="effectPriceInput" type="number" min="0" max="999999" step="1" placeholder="가격" />
           <select id="effectStyleInput" aria-label="효과 종류">
             <option value="fire">불꽃</option>
             <option value="rainbow">무지개</option>
@@ -148,33 +147,13 @@
             <span>두께</span>
             <input id="effectSizeInput" type="range" min="0.6" max="1.8" step="0.1" value="1" />
           </label>
-          <button type="submit" class="fit-text">효과 등록</button>
+          <button type="submit" class="fit-text">효과 만들기</button>
         </form>
       </section>
-
-      <div id="skinShopGrid" class="skin-shop-grid"></div>
-    </section>
-  </main>
-
-  <main id="inventoryView" class="shop-view" hidden>
-    <section class="shop-panel">
-      <div class="section-head">
-        <div>
-          <h2>보관함</h2>
-          <p id="inventoryInfo">보유한 알까기 스킨을 확인하고 장착하세요.</p>
-        </div>
-        <button id="inventoryBackBtn" type="button" class="ghost fit-text">돌아가기</button>
-      </div>
 
       <div id="inventoryGrid" class="skin-shop-grid"></div>
     </section>
   </main>
-
-  <aside id="spectatorPanel" class="spectator-panel" hidden>
-    <button id="joinSpectatorBtn" type="button" class="fit-text">관전자로 참가</button>
-    <h3>관전자</h3>
-    <ul id="spectatorList"></ul>
-  </aside>
 
   <aside id="lobbyChat" class="chat" aria-label="로비 채팅창">
     <div id="lobbyChatMessages" class="chat-messages"></div>

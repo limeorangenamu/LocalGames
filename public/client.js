@@ -2,31 +2,24 @@ const socket = io();
 
 const lobbyView = document.getElementById('lobbyView');
 const gameView = document.getElementById('gameView');
-const shopView = document.getElementById('shopView');
 const inventoryView = document.getElementById('inventoryView');
 const roomList = document.getElementById('roomList');
 const lobbyInfo = document.getElementById('lobbyInfo');
 const createRoomBtn = document.getElementById('createRoomBtn');
-const shopOpenBtn = document.getElementById('shopOpenBtn');
 const inventoryOpenBtn = document.getElementById('inventoryOpenBtn');
-const shopBackBtn = document.getElementById('shopBackBtn');
 const inventoryBackBtn = document.getElementById('inventoryBackBtn');
-const shopInfo = document.getElementById('shopInfo');
 const inventoryInfo = document.getElementById('inventoryInfo');
-const shopAdminPanel = document.getElementById('shopAdminPanel');
+const skinCreatorPanel = document.getElementById('skinCreatorPanel');
 const skinCreateForm = document.getElementById('skinCreateForm');
 const skinNameInput = document.getElementById('skinNameInput');
-const skinPriceInput = document.getElementById('skinPriceInput');
 const skinImageInput = document.getElementById('skinImageInput');
 const effectCreateForm = document.getElementById('effectCreateForm');
 const effectNameInput = document.getElementById('effectNameInput');
-const effectPriceInput = document.getElementById('effectPriceInput');
 const effectStyleInput = document.getElementById('effectStyleInput');
 const effectColorAInput = document.getElementById('effectColorAInput');
 const effectColorBInput = document.getElementById('effectColorBInput');
 const effectLengthInput = document.getElementById('effectLengthInput');
 const effectSizeInput = document.getElementById('effectSizeInput');
-const skinShopGrid = document.getElementById('skinShopGrid');
 const inventoryGrid = document.getElementById('inventoryGrid');
 const leaveRoomBtn = document.getElementById('leaveRoomBtn');
 const roomTitle = document.getElementById('roomTitle');
@@ -34,8 +27,6 @@ const boardEl = document.getElementById('board');
 const checkAlertEl = document.getElementById('checkAlert');
 
 const nicknameText = document.getElementById('nicknameText');
-const goldAmount = document.getElementById('goldAmount');
-const goldBadge = goldAmount?.closest('.gold-badge');
 const editNicknameBtn = document.getElementById('editNicknameBtn');
 const nicknameModal = document.getElementById('nicknameModal');
 const nicknameForm = document.getElementById('nicknameForm');
@@ -207,16 +198,12 @@ const chessPieceText = {
 
 let currentNickname = '';
 let pendingNickname = '';
-let currentGold = 0;
-let currentIsAdmin = false;
 let currentRoomId = null;
 let myRole = 'lobby';
 let latestRoomState = null;
 let activeView = 'lobby';
-let previousViewBeforeShop = 'lobby';
-let latestShopState = null;
+let previousViewBeforeInventory = 'lobby';
 let latestInventoryState = null;
-let pendingSkinChoiceId = null;
 let pendingInventorySkinChoiceId = null;
 let boardRenderKey = '';
 let selectedJanggiPiece = null;
@@ -230,42 +217,6 @@ let lastAlkkagiFadeSeq = null;
 let lastAlkkagiAnimatedSeq = null;
 let lastCheckAlertId = null;
 let checkAlertTimer = null;
-
-if (shopOpenBtn) shopOpenBtn.hidden = true;
-if (goldBadge) goldBadge.hidden = true;
-
-function setupInventoryCustomizerPanel() {
-  if (!shopAdminPanel || !inventoryGrid?.parentElement) return;
-
-  shopAdminPanel.hidden = false;
-  shopAdminPanel.classList.add('personal-skin-panel');
-  inventoryGrid.parentElement.insertBefore(shopAdminPanel, inventoryGrid);
-
-  const title = shopAdminPanel.querySelector('h3');
-  if (title) title.textContent = '개인 스킨 제작';
-
-  const description = shopAdminPanel.querySelector('p');
-  if (description) {
-    description.textContent = '첫번째 줄 :: 알까기 말 스킨 제작툴 // 두번째 줄 :: 알까기 말 이동 효과 제작툴';
-  }
-
-  if (skinPriceInput) {
-    skinPriceInput.value = '0';
-    skinPriceInput.hidden = true;
-  }
-  if (effectPriceInput) {
-    effectPriceInput.value = '0';
-    effectPriceInput.hidden = true;
-  }
-
-  const skinButton = skinCreateForm?.querySelector('button[type="submit"]');
-  if (skinButton) skinButton.textContent = '말 스킨 만들기';
-
-  const effectButton = effectCreateForm?.querySelector('button[type="submit"]');
-  if (effectButton) effectButton.textContent = '효과 만들기';
-}
-
-setupInventoryCustomizerPanel();
 
 function gameTypeToKorean(gameType) {
   if (gameType === 'omok') return '오목';
@@ -947,7 +898,6 @@ function showLobby() {
   boardRenderKey = '';
   lobbyView.hidden = false;
   gameView.hidden = true;
-  shopView.hidden = true;
   inventoryView.hidden = true;
   spectatorPanel.hidden = true;
   lobbyChat.hidden = false;
@@ -961,23 +911,17 @@ function showGame() {
   activeView = 'game';
   lobbyView.hidden = true;
   gameView.hidden = false;
-  shopView.hidden = true;
   inventoryView.hidden = true;
   spectatorPanel.hidden = false;
   lobbyChat.hidden = true;
   roomChat.hidden = false;
 }
 
-function showShop() {
-  showInventory();
-}
-
 function showInventory() {
-  previousViewBeforeShop = (activeView === 'shop' || activeView === 'inventory') ? previousViewBeforeShop : activeView;
+  previousViewBeforeInventory = activeView === 'inventory' ? previousViewBeforeInventory : activeView;
   activeView = 'inventory';
   lobbyView.hidden = true;
   gameView.hidden = true;
-  shopView.hidden = true;
   inventoryView.hidden = false;
   spectatorPanel.hidden = true;
   lobbyChat.hidden = true;
@@ -986,8 +930,8 @@ function showInventory() {
   renderInventory();
 }
 
-function leaveStoreLikeView() {
-  if (previousViewBeforeShop === 'game' && latestRoomState) {
+function leaveInventoryView() {
+  if (previousViewBeforeInventory === 'game' && latestRoomState) {
     showGame();
     renderBoard(latestRoomState);
     updateStatus(latestRoomState);
@@ -1056,7 +1000,10 @@ function ensureBoard(state) {
 
 function makePlaceholderBoard() {
   boardEl.className = 'board board-placeholder';
-  boardEl.innerHTML = '<div>게임을 선택하세요</div>';
+  boardEl.innerHTML = '<div class="board-placeholder-text">'
+    + '<strong>게임을 선택하세요</strong>'
+    + '<span>왼쪽에서 오목·장기·체스·알까기 중 하나를 골라주세요.</span>'
+    + '</div>';
   boardEl.setAttribute('aria-label', '게임 선택 전');
 }
 
@@ -2015,118 +1962,12 @@ function createSkinPreview(skin) {
   return preview;
 }
 
-function renderShop(state = latestShopState) {
-  return;
-
-  if (!skinShopGrid || !shopAdminPanel) return;
-
-  const shopState = state || { skins: [], isAdmin: currentIsAdmin, gold: currentGold };
-  shopAdminPanel.hidden = !shopState.isAdmin;
-  const visibleCount = shopState.skins?.length || 0;
-  const ownedCount = (shopState.skins || []).filter((skin) => skin.owned).length;
-  shopInfo.textContent = `보유 골드 ${shopState.gold || 0}G · 판매 목록 ${visibleCount}개 · 보유 ${ownedCount}개`;
-  skinShopGrid.innerHTML = '';
-
-  if (!shopState.skins?.length) {
-    const empty = document.createElement('p');
-    empty.className = 'empty-text';
-    empty.textContent = '아직 등록된 스킨이 없습니다.';
-    skinShopGrid.appendChild(empty);
-    return;
-  }
-
-  for (const skin of shopState.skins) {
-    const card = document.createElement('article');
-    card.className = 'skin-card';
-
-    const preview = createSkinPreview(skin);
-    const isTrail = isAlkkagiTrailSkin(skin);
-    const isTrailEquipped = (skin.equippedTypes || []).includes(ALKKAGI_TRAIL_SLOT);
-
-    const title = document.createElement('h3');
-    title.className = 'fit-text';
-    title.textContent = skin.name;
-
-    const meta = document.createElement('p');
-    const equippedLabels = equippedLabelsForSkin(skin);
-    meta.textContent = [
-      `${skinKindLabel(skin)} · ${skin.price}G`,
-      skin.active ? '판매중' : '판매 중지됨',
-      skin.owned ? '보관함' : '',
-      equippedLabels ? `장착: ${equippedLabels}` : '',
-    ].filter(Boolean).join(' · ');
-
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'fit-text';
-    button.textContent = skin.owned
-      ? (isTrail ? (isTrailEquipped ? '효과 해제' : '효과 장착') : '장착 변경')
-      : (!skin.active ? '판매 중지' : (currentGold < skin.price ? '골드 부족' : '구매'));
-    button.disabled = (!skin.owned && (!skin.active || currentGold < skin.price));
-    button.addEventListener('click', () => {
-      if (isTrail) {
-        socket.emit('buySkin', { skinId: skin.id, pieceType: ALKKAGI_TRAIL_SLOT });
-        return;
-      }
-      pendingSkinChoiceId = pendingSkinChoiceId === skin.id ? null : skin.id;
-      renderShop();
-    });
-
-    card.append(preview, title, meta, button);
-
-    if (pendingSkinChoiceId === skin.id && !isTrail) {
-      const picker = document.createElement('div');
-      picker.className = 'skin-piece-picker';
-      for (const [pieceType, label] of janggiSkinPieceTypes) {
-        const isEquipped = (skin.equippedTypes || []).includes(pieceType);
-        const pieceButton = document.createElement('button');
-        pieceButton.type = 'button';
-        pieceButton.classList.toggle('equipped', isEquipped);
-        pieceButton.textContent = isEquipped ? `${label} 해제` : `${label} 장착`;
-        pieceButton.title = isEquipped ? '한 번 더 누르면 이 말에서 장착 해제됩니다.' : '이 말에 스킨을 장착합니다.';
-        pieceButton.addEventListener('click', () => {
-          pendingSkinChoiceId = null;
-          socket.emit('buySkin', { skinId: skin.id, pieceType });
-        });
-        picker.appendChild(pieceButton);
-      }
-      card.appendChild(picker);
-    }
-
-    if (shopState.isAdmin) {
-      const adminButton = document.createElement('button');
-      adminButton.type = 'button';
-      adminButton.className = 'ghost fit-text';
-      adminButton.textContent = skin.active ? '판매 중지하기' : '판매 시작';
-      adminButton.addEventListener('click', () => {
-        socket.emit('toggleSkinSale', { skinId: skin.id, active: !skin.active });
-      });
-      card.appendChild(adminButton);
-
-      const deleteButton = document.createElement('button');
-      deleteButton.type = 'button';
-      deleteButton.className = 'ghost danger fit-text';
-      deleteButton.textContent = '완전 삭제';
-      deleteButton.addEventListener('click', () => {
-        const confirmed = window.confirm(`${skin.name} 스킨을 상점, 모든 보관함, 모든 장착 상태에서 완전히 삭제할까요?`);
-        if (!confirmed) return;
-        socket.emit('removeSkin', { skinId: skin.id });
-      });
-      card.appendChild(deleteButton);
-    }
-
-    skinShopGrid.appendChild(card);
-  }
-
-  fitAllText();
-}
-
 function renderInventory(state = latestInventoryState) {
   if (!inventoryGrid || !inventoryInfo) return;
 
   const inventoryState = state || { skins: [] };
   const canCustomize = Boolean(currentNickname && currentNickname !== '손님');
-  if (shopAdminPanel) shopAdminPanel.hidden = !canCustomize;
+  if (skinCreatorPanel) skinCreatorPanel.hidden = !canCustomize;
   inventoryInfo.textContent = canCustomize
     ? `보유 스킨 ${inventoryState.skins?.length || 0}개 · 직접 만들고 장착하세요.`
     : '닉네임을 설정하면 개인 스킨을 만들고 장착할 수 있습니다.';
@@ -2447,20 +2288,12 @@ createRoomBtn.addEventListener('click', () => {
   socket.emit('createRoom');
 });
 
-shopOpenBtn.addEventListener('click', () => {
-  showShop();
-});
-
 inventoryOpenBtn.addEventListener('click', () => {
   showInventory();
 });
 
-shopBackBtn.addEventListener('click', () => {
-  leaveStoreLikeView();
-});
-
 inventoryBackBtn.addEventListener('click', () => {
-  leaveStoreLikeView();
+  leaveInventoryView();
 });
 
 skinCreateForm.addEventListener('submit', (event) => {
@@ -2480,7 +2313,6 @@ skinCreateForm.addEventListener('submit', (event) => {
   reader.addEventListener('load', () => {
     socket.emit('createJanggiSkin', {
       name: skinNameInput.value,
-      price: 0,
       imageData: reader.result,
     });
   });
@@ -2499,7 +2331,6 @@ effectCreateForm.addEventListener('submit', (event) => {
 
   socket.emit('createAlkkagiTrailSkin', {
     name: effectNameInput.value,
-    price: 0,
     effect: {
       style: effectStyleInput.value,
       colorA: effectColorAInput.value,
@@ -2632,19 +2463,7 @@ socket.on('connect', () => {
   }
 });
 
-socket.on('profile', ({ name, accepted, isAdmin } = {}) => {
-  currentGold = 0;
-  currentIsAdmin = Boolean(isAdmin);
-  if (latestShopState) {
-    latestShopState.gold = currentGold;
-    latestShopState.isAdmin = currentIsAdmin;
-    renderShop();
-  }
-  if (latestInventoryState) {
-    latestInventoryState.gold = currentGold;
-    renderInventory();
-  }
-
+socket.on('profile', ({ name, accepted } = {}) => {
   if (accepted && name) {
     currentNickname = name;
     pendingNickname = '';
@@ -2678,25 +2497,9 @@ socket.on('nicknameError', ({ name, message } = {}) => {
   fitAllText();
 });
 
-socket.on('shopState', (state) => {
-  latestShopState = state;
-  currentGold = 0;
-  currentIsAdmin = Boolean(state.isAdmin);
-  renderShop(state);
-});
-
 socket.on('inventoryState', (state) => {
   latestInventoryState = state;
-  currentGold = 0;
   renderInventory(state);
-});
-
-socket.on('shopMessage', (message) => {
-  shopInfo.textContent = message;
-  if (skinCreateForm && message.includes('등록했습니다')) {
-    skinCreateForm.reset();
-    effectCreateForm.reset();
-  }
 });
 
 socket.on('inventoryMessage', (message) => {
@@ -2704,8 +2507,6 @@ socket.on('inventoryMessage', (message) => {
   if (message.includes('만들었습니다')) {
     skinCreateForm.reset();
     effectCreateForm.reset();
-    if (skinPriceInput) skinPriceInput.value = '0';
-    if (effectPriceInput) effectPriceInput.value = '0';
   }
 });
 
@@ -2720,7 +2521,7 @@ socket.on('lobbyMessage', (message) => {
 socket.on('roomJoined', (state) => {
   currentRoomId = state.id;
   latestRoomState = state;
-  if (activeView !== 'shop' && activeView !== 'inventory') showGame();
+  if (activeView !== 'inventory') showGame();
   renderBoard(state);
   updateStatus(state);
 });
@@ -2741,7 +2542,7 @@ socket.on('role', ({ role, roomId }) => {
 socket.on('roomState', (state) => {
   latestRoomState = state;
   currentRoomId = state.id;
-  if (activeView !== 'shop' && activeView !== 'inventory') showGame();
+  if (activeView !== 'inventory') showGame();
   renderBoard(state);
   updateStatus(state);
 });

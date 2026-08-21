@@ -35,11 +35,6 @@ const ALKKAGI_GIANT_SCALE = 1.5;
 const ALKKAGI_RPG_STEP = 0.2;
 const ALKKAGI_SIZE_MASS_EXPONENT = 1.55;
 const ALKKAGI_COLLISION_MASS_EXPONENT = 1.35;
-const GOLD_WIN_REWARD = 5;
-const GOLD_LOSS_REWARD = 2;
-const MIN_REWARDED_GAME_MS = 2 * 60 * 1000;
-const MIN_REWARDED_ACTIONS_PER_PLAYER = 3;
-const SHOP_ADMIN_NICKNAME = '서버장';
 const SKIN_TARGET_PIECE = 'janggi-piece';
 const SKIN_TARGET_TRAIL = 'alkkagi-trail';
 const ALKKAGI_TRAIL_SLOT = 'alkkagiTrail';
@@ -210,7 +205,6 @@ function loadEconomy() {
         return {
           ...skin,
           target,
-          active: skin.active !== false,
           effect: target === SKIN_TARGET_TRAIL ? sanitizeTrailEffect(skin.effect) : skin.effect,
         };
       })
@@ -258,7 +252,6 @@ function getWallet(name) {
   if (!economy.players[key]) {
     economy.players[key] = {
       name: cleanName,
-      gold: 0,
       inventory: [],
       equipped: {},
     };
@@ -271,19 +264,9 @@ function getWallet(name) {
     if (!economy.players[key].equipped || typeof economy.players[key].equipped !== 'object') {
       economy.players[key].equipped = {};
     }
-    if (!Number.isFinite(Number(economy.players[key].gold))) {
-      economy.players[key].gold = 0;
-    }
   }
 
   return economy.players[key];
-}
-
-function addGoldToNickname(name, amount) {
-  const wallet = getWallet(name);
-  wallet.gold = Math.max(0, Math.floor(Number(wallet.gold) || 0) + amount);
-  saveEconomy();
-  return wallet.gold;
 }
 
 function publicProfile(socket, accepted = false) {
@@ -292,10 +275,8 @@ function publicProfile(socket, accepted = false) {
   return {
     name,
     accepted,
-    gold: wallet.gold,
     inventory: [...wallet.inventory],
     equipped: { ...wallet.equipped },
-    isAdmin: name === SHOP_ADMIN_NICKNAME,
   };
 }
 
@@ -303,44 +284,11 @@ function emitProfile(socket, accepted = false) {
   socket.emit('profile', publicProfile(socket, accepted));
 }
 
-function publicShopState(socket) {
-  const name = getUserName(socket.id);
-  const wallet = getWallet(name);
-  const owned = new Set(wallet.inventory || []);
-  const isAdmin = name === SHOP_ADMIN_NICKNAME;
-
-  return {
-    gold: wallet.gold,
-    isAdmin,
-    skins: (economy.skins || [])
-      .filter((skin) => skin.active !== false || isAdmin)
-      .map((skin) => ({
-        id: skin.id,
-        name: skin.name,
-        price: skin.price,
-        imageUrl: skin.imageUrl || null,
-        target: skin.target,
-        effect: skin.target === SKIN_TARGET_TRAIL ? sanitizeTrailEffect(skin.effect) : null,
-        createdAt: skin.createdAt,
-        active: skin.active !== false,
-        owned: owned.has(skin.id),
-        equippedTypes: Object.entries(wallet.equipped || {})
-          .filter(([, skinId]) => skinId === skin.id)
-          .map(([pieceType]) => pieceType),
-      })),
-  };
-}
-
-function emitShopState(socket) {
-  socket.emit('shopState', publicShopState(socket));
-}
-
 function publicInventoryState(socket) {
   const name = getUserName(socket.id);
   const wallet = getWallet(name);
 
   return {
-    gold: wallet.gold,
     equipped: { ...(wallet.equipped || {}) },
     skins: [...new Set(wallet.inventory || [])]
       .map((skinId) => findSkin(skinId))
@@ -348,12 +296,10 @@ function publicInventoryState(socket) {
       .map((skin) => ({
         id: skin.id,
         name: skin.name,
-        price: skin.price,
         imageUrl: skin.imageUrl || null,
         target: skin.target,
         effect: skin.target === SKIN_TARGET_TRAIL ? sanitizeTrailEffect(skin.effect) : null,
         createdAt: skin.createdAt,
-        active: skin.active !== false,
         equippedTypes: Object.entries(wallet.equipped || {})
           .filter(([, skinId]) => skinId === skin.id)
           .map(([pieceType]) => pieceType),
@@ -475,14 +421,13 @@ function parseSkinImageData(imageData) {
   return { ext, buffer };
 }
 
-function createSkinItem({ name, price, imageData, createdBy }) {
+function createSkinItem({ name, imageData, createdBy }) {
   const image = parseSkinImageData(imageData);
   if (!image) {
     return { ok: false, message: 'PNG, JPG, WEBP, GIF 이미지만 3MB 이하로 업로드할 수 있습니다.' };
   }
 
   const cleanName = sanitizeShopText(name);
-  const cleanPrice = Math.max(0, Math.min(999999, Math.floor(Number(price) || 0)));
   const id = `skin-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const fileName = `${id}.${image.ext}`;
   const absolutePath = path.join(SKIN_UPLOAD_DIR, fileName);
@@ -492,31 +437,26 @@ function createSkinItem({ name, price, imageData, createdBy }) {
   const skin = {
     id,
     name: cleanName,
-    price: cleanPrice,
     imageUrl: `/uploads/skins/${fileName}`,
     target: SKIN_TARGET_PIECE,
     createdBy,
     createdAt: Date.now(),
-    active: true,
   };
   economy.skins.push(skin);
   saveEconomy();
   return { ok: true, skin };
 }
 
-function createTrailSkinItem({ name, price, effect, createdBy }) {
+function createTrailSkinItem({ name, effect, createdBy }) {
   const cleanName = sanitizeShopText(name, '알까기 이동 효과');
-  const cleanPrice = Math.max(0, Math.min(999999, Math.floor(Number(price) || 0)));
   const id = `trail-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const skin = {
     id,
     name: cleanName,
-    price: cleanPrice,
     target: SKIN_TARGET_TRAIL,
     effect: sanitizeTrailEffect(effect),
     createdBy,
     createdAt: Date.now(),
-    active: true,
   };
   economy.skins.push(skin);
   saveEconomy();
@@ -530,61 +470,6 @@ function addSkinToWallet(name, skinId) {
   }
   saveEconomy();
   return wallet;
-}
-
-function deleteSkinImageFile(skin) {
-  if (!skin?.imageUrl?.startsWith('/uploads/skins/')) return;
-
-  const uploadDir = path.resolve(SKIN_UPLOAD_DIR);
-  const filePath = path.resolve(SKIN_UPLOAD_DIR, path.basename(skin.imageUrl));
-  if (!filePath.startsWith(`${uploadDir}${path.sep}`)) return;
-
-  try {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-  } catch (error) {
-    console.error('Failed to delete skin image file:', error);
-  }
-}
-
-function removeSkinFromWallets(skinId) {
-  for (const wallet of Object.values(economy.players || {})) {
-    wallet.inventory = Array.isArray(wallet.inventory)
-      ? wallet.inventory.filter((id) => id !== skinId)
-      : [];
-
-    if (!wallet.equipped || typeof wallet.equipped !== 'object') {
-      wallet.equipped = {};
-      continue;
-    }
-
-    for (const [pieceType, equippedSkinId] of Object.entries(wallet.equipped)) {
-      if (equippedSkinId === skinId) {
-        delete wallet.equipped[pieceType];
-      }
-    }
-  }
-}
-
-function removeSkinItem(skinId) {
-  const skinIndex = (economy.skins || []).findIndex((skin) => skin.id === skinId);
-  if (skinIndex < 0) {
-    return { ok: false, message: '존재하지 않는 스킨입니다.' };
-  }
-
-  const [skin] = economy.skins.splice(skinIndex, 1);
-  removeSkinFromWallets(skin.id);
-  deleteSkinImageFile(skin);
-  saveEconomy();
-  return { ok: true, skin };
-}
-
-function broadcastShopState() {
-  for (const socket of io.sockets.sockets.values()) {
-    emitShopState(socket);
-    emitInventoryState(socket);
-  }
 }
 
 function sanitizeRoomName(name, userName) {
@@ -644,9 +529,6 @@ function createRoom(ownerId, name) {
     winningStones: [],
     lastMove: null,
     moveCount: 0,
-    turnCounts: { black: 0, white: 0 },
-    gameStartedAt: null,
-    goldRewardGranted: false,
     finishReason: null,
     swapRequest: null,
     ready: {
@@ -677,9 +559,6 @@ function resetRoomBoard(room, status = 'waiting') {
   room.winningStones = [];
   room.lastMove = null;
   room.moveCount = 0;
-  room.turnCounts = { black: 0, white: 0 };
-  room.gameStartedAt = status === 'playing' ? Date.now() : null;
-  room.goldRewardGranted = false;
   room.finishReason = null;
   room.swapRequest = null;
   clearReady(room);
@@ -777,72 +656,11 @@ function emitRole(socket, room = null) {
   });
 }
 
-function recordGameAction(room, role) {
+function recordGameAction(room) {
   room.moveCount += 1;
-  if (role === 'black' || role === 'white') {
-    room.turnCounts = room.turnCounts || { black: 0, white: 0 };
-    room.turnCounts[role] = (room.turnCounts[role] || 0) + 1;
-  }
-}
-
-function goldRewardBlockReason(room) {
-  if (room.goldRewardGranted) return 'already-granted';
-  if (room.status !== 'finished' || !room.winner || room.winner === 'draw') return 'not-win-loss';
-  if (room.finishReason === 'resign') return '기권으로 끝난 게임은 골드를 지급하지 않습니다.';
-  if (!room.players.black || !room.players.white) return '두 플레이어가 모두 있어야 골드가 지급됩니다.';
-
-  const elapsed = Date.now() - (room.gameStartedAt || 0);
-  if (!room.gameStartedAt || elapsed < MIN_REWARDED_GAME_MS) {
-    return '골드는 2분 이상 진행된 정상 경기에서만 지급됩니다.';
-  }
-
-  const counts = room.turnCounts || {};
-  if ((counts.black || 0) < MIN_REWARDED_ACTIONS_PER_PLAYER
-    || (counts.white || 0) < MIN_REWARDED_ACTIONS_PER_PLAYER) {
-    return '골드는 양쪽이 최소 3번 이상 행동한 정상 경기에서만 지급됩니다.';
-  }
-
-  return null;
-}
-
-function maybeAwardGameGold(room) {
-  if (room.goldRewardGranted || room.status !== 'finished') return;
-
-  const blockReason = goldRewardBlockReason(room);
-  room.goldRewardGranted = true;
-  if (blockReason) {
-    if (blockReason !== 'already-granted' && blockReason !== 'not-win-loss') {
-      io.to(room.id).emit('roomMessage', blockReason);
-    }
-    return;
-  }
-
-  const winnerId = room.players[room.winner];
-  const loserRole = opposite(room.winner);
-  const loserId = room.players[loserRole];
-  if (!winnerId || !loserId) return;
-
-  const winnerName = getUserName(winnerId);
-  const loserName = getUserName(loserId);
-  addGoldToNickname(winnerName, GOLD_WIN_REWARD);
-  addGoldToNickname(loserName, GOLD_LOSS_REWARD);
-
-  const winnerSocket = io.sockets.sockets.get(winnerId);
-  const loserSocket = io.sockets.sockets.get(loserId);
-  if (winnerSocket) {
-    emitProfile(winnerSocket, true);
-    emitShopState(winnerSocket);
-  }
-  if (loserSocket) {
-    emitProfile(loserSocket, true);
-    emitShopState(loserSocket);
-  }
-
-  io.to(room.id).emit('roomMessage', `골드 지급: ${winnerName} +${GOLD_WIN_REWARD}G, ${loserName} +${GOLD_LOSS_REWARD}G`);
 }
 
 function emitRoomState(room) {
-  maybeAwardGameGold(room);
   const state = publicRoomState(room);
   for (const socketId of roomParticipants(room)) {
     const socket = io.sockets.sockets.get(socketId);
@@ -1446,9 +1264,6 @@ function startPreparedJanggiGame(room) {
   room.winningStones = [];
   room.lastMove = null;
   room.moveCount = 0;
-  room.turnCounts = { black: 0, white: 0 };
-  room.gameStartedAt = Date.now();
-  room.goldRewardGranted = false;
   room.finishReason = null;
   room.swapRequest = null;
   clearReady(room);
@@ -2372,79 +2187,15 @@ io.on('connection', (socket) => {
     user.name = cleanName;
     getWallet(user.name);
     emitProfile(socket, true);
-    emitShopState(socket);
 
     const room = currentRoomFor(socket);
     if (room) emitRoomState(room);
     emitLobbyState();
   });
 
-  socket.on('requestShopState', () => {
-    emitProfile(socket, Boolean(users.get(socket.id)?.name && getUserName(socket.id) !== '손님'));
-    emitShopState(socket);
-  });
-
   socket.on('requestInventoryState', () => {
     emitProfile(socket, Boolean(users.get(socket.id)?.name && getUserName(socket.id) !== '손님'));
     emitInventoryState(socket);
-  });
-
-  socket.on('buySkin', ({ skinId, pieceType } = {}) => {
-    const user = users.get(socket.id);
-    if (!user || user.name === '손님') {
-      socket.emit('shopMessage', '닉네임을 먼저 설정해야 구매할 수 있습니다.');
-      return;
-    }
-
-    const skin = findSkin(skinId);
-    if (!skin) {
-      socket.emit('shopMessage', '존재하지 않는 스킨입니다.');
-      return;
-    }
-
-    if (!isSkinEquipSlot(skin, pieceType)) {
-      socket.emit('shopMessage', isAlkkagiTrailSkin(skin)
-        ? '알까기 이동 효과로 장착할 수 있는 스킨입니다.'
-        : '스킨을 적용할 알까기 말을 선택하세요.');
-      return;
-    }
-
-    const wallet = getWallet(user.name);
-    const alreadyOwned = wallet.inventory.includes(skin.id);
-    if (!alreadyOwned) {
-      if (skin.active === false) {
-        socket.emit('shopMessage', '판매가 종료된 스킨입니다.');
-        emitShopState(socket);
-        return;
-      }
-
-      if (wallet.gold < skin.price) {
-        socket.emit('shopMessage', '골드가 부족합니다.');
-        emitShopState(socket);
-        return;
-      }
-
-      wallet.gold -= skin.price;
-      wallet.inventory.push(skin.id);
-    }
-
-    wallet.equipped = wallet.equipped || {};
-    const wasEquipped = alreadyOwned && wallet.equipped[pieceType] === skin.id;
-    if (wasEquipped) {
-      delete wallet.equipped[pieceType];
-    } else {
-      wallet.equipped[pieceType] = skin.id;
-    }
-    saveEconomy();
-    socket.emit('shopMessage', wasEquipped
-      ? `${skin.name} 스킨을 ${pieceTypeLabel(pieceType)}에서 장착 해제했습니다.`
-      : (alreadyOwned ? `${skin.name} 스킨을 장착했습니다.` : `${skin.name} 스킨을 구매하고 장착했습니다.`));
-    emitProfile(socket, true);
-    emitShopState(socket);
-    emitInventoryState(socket);
-
-    const room = currentRoomFor(socket);
-    if (room) emitRoomState(room);
   });
 
   socket.on('equipSkin', ({ skinId, pieceType } = {}) => {
@@ -2482,7 +2233,6 @@ io.on('connection', (socket) => {
       : `${skin.name} 스킨을 장착했습니다.`);
     emitProfile(socket, true);
     emitInventoryState(socket);
-    emitShopState(socket);
 
     const room = currentRoomFor(socket);
     if (room) emitRoomState(room);
@@ -2519,57 +2269,12 @@ io.on('connection', (socket) => {
       : `${skin.name} 스킨은 장착 중이 아닙니다.`);
     emitProfile(socket, true);
     emitInventoryState(socket);
-    emitShopState(socket);
 
     const room = currentRoomFor(socket);
     if (room) emitRoomState(room);
   });
 
-  socket.on('toggleSkinSale', ({ skinId, active } = {}) => {
-    const user = users.get(socket.id);
-    if (!user || user.name !== SHOP_ADMIN_NICKNAME) {
-      socket.emit('shopMessage', '서버장 닉네임만 스킨 판매 상태를 바꿀 수 있습니다.');
-      return;
-    }
-
-    const skin = findSkin(skinId);
-    if (!skin) {
-      socket.emit('shopMessage', '존재하지 않는 스킨입니다.');
-      return;
-    }
-
-    skin.active = Boolean(active);
-    skin.updatedAt = Date.now();
-    saveEconomy();
-    socket.emit('shopMessage', skin.active
-      ? `${skin.name} 스킨 판매를 시작했습니다.`
-      : `${skin.name} 스킨 판매를 중지했습니다.`);
-    broadcastShopState();
-  });
-
-  socket.on('removeSkin', ({ skinId } = {}) => {
-    const user = users.get(socket.id);
-    if (!user || user.name !== SHOP_ADMIN_NICKNAME) {
-      socket.emit('shopMessage', '서버장 닉네임만 스킨을 완전히 삭제할 수 있습니다.');
-      return;
-    }
-
-    const result = removeSkinItem(skinId);
-    if (!result.ok) {
-      socket.emit('shopMessage', result.message);
-      return;
-    }
-
-    socket.emit('shopMessage', `${result.skin.name} 스킨을 완전히 삭제했습니다.`);
-    broadcastShopState();
-    for (const room of rooms.values()) {
-      if (room.gameType === 'alkkagi' && room.status !== 'finished') {
-        emitRoomState(room);
-      }
-    }
-  });
-
-  socket.on('createJanggiSkin', ({ name, price, imageData } = {}) => {
+  socket.on('createJanggiSkin', ({ name, imageData } = {}) => {
     const user = users.get(socket.id);
     if (!user || user.name === '손님') {
       socket.emit('inventoryMessage', '닉네임을 먼저 설정해야 스킨을 만들 수 있습니다.');
@@ -2578,7 +2283,6 @@ io.on('connection', (socket) => {
 
     const result = createSkinItem({
       name,
-      price: 0,
       imageData,
       createdBy: user.name,
     });
@@ -2596,7 +2300,7 @@ io.on('connection', (socket) => {
     if (room) emitRoomState(room);
   });
 
-  socket.on('createAlkkagiTrailSkin', ({ name, price, effect } = {}) => {
+  socket.on('createAlkkagiTrailSkin', ({ name, effect } = {}) => {
     const user = users.get(socket.id);
     if (!user || user.name === '손님') {
       socket.emit('inventoryMessage', '닉네임을 먼저 설정해야 효과 스킨을 만들 수 있습니다.');
@@ -2605,7 +2309,6 @@ io.on('connection', (socket) => {
 
     const result = createTrailSkinItem({
       name,
-      price: 0,
       effect,
       createdBy: user.name,
     });

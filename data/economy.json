@@ -444,6 +444,12 @@
       "gold": 0,
       "inventory": [],
       "equipped": {}
+    },
+    "테스트닉네임1": {
+      "name": "테스트닉네임1",
+      "gold": 0,
+      "inventory": [],
+      "equipped": {}
     }
   },
   "skins": [
