@@ -1,3 +1,19 @@
+@font-face {
+  font-family: "Song Myung";
+  src: url("fonts/song-myung-v23-korean-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gowun Dodum";
+  src: url("fonts/gowun-dodum-v12-korean-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --bg: #f3eadb;
   --paper: #fffaf0;
@@ -29,7 +45,7 @@
 
 body {
   margin: 0;
-  font-family: "Nanum Myeongjo", Batang, Georgia, "Times New Roman", serif;
+  font-family: "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   background:
     linear-gradient(135deg, rgba(255, 250, 240, 0.84), rgba(222, 196, 159, 0.42)),
     var(--bg);
@@ -66,6 +82,7 @@ p {
 h1 {
   margin-bottom: 0;
   font-size: 34px;
+  font-family: "Song Myung", "Nanum Myeongjo", Batang, serif;
 }
 
 .brand-row {
@@ -87,7 +104,6 @@ h1 {
   color: var(--ivory);
   font-size: 13px;
   font-weight: 900;
-  box-shadow: 0 8px 16px rgba(82, 49, 23, 0.16);
 }
 
 h2 {
@@ -158,21 +174,36 @@ button {
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
-  transition: transform 0.12s ease, opacity 0.12s ease, filter 0.12s ease;
+  box-shadow: 0 3px 0 rgba(43, 25, 11, 0.3);
+  transition:
+    transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.24s cubic-bezier(0.34, 1.56, 0.64, 1),
+    filter 0.15s ease,
+    opacity 0.12s ease;
 }
 
 button:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 0 rgba(43, 25, 11, 0.32);
+  filter: brightness(1.05);
 }
 
 button:active {
-  transform: translateY(0);
+  transform: translateY(2px) scale(0.95);
+  box-shadow: 0 0 0 rgba(43, 25, 11, 0.3);
+  filter: brightness(0.92);
+  transition:
+    transform 0.08s cubic-bezier(0.2, 0, 0.4, 1),
+    box-shadow 0.08s ease-out,
+    filter 0.08s ease-out;
 }
 
 button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
+  filter: none;
 }
 
 button.ghost {
@@ -845,6 +876,15 @@ button.danger {
   padding: 0;
   position: relative;
   z-index: 1;
+  box-shadow: none;
+  transform: none;
+}
+
+.cell:hover,
+.cell:active {
+  box-shadow: none;
+  transform: none;
+  filter: none;
 }
 
 .cell:hover::after {
