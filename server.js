@@ -806,8 +806,6 @@ function goldRewardBlockReason(room) {
 }
 
 function maybeAwardGameGold(room) {
-  return;
-
   if (room.goldRewardGranted || room.status !== 'finished') return;
 
   const blockReason = goldRewardBlockReason(room);
